@@ -1,0 +1,59 @@
+name: FastEdge Deploy Application Action
+description:
+  This action deploys a FastEdge application from a specified WASM binary.
+author: Gcore - FastEdge Team
+
+# Add your action's branding here. This will appear on the GitHub Marketplace.
+# https://haya14busa.github.io/github-action-brandings/
+branding:
+  icon: upload-cloud
+  color: orange
+
+# Define your inputs here.
+inputs:
+  # Required inputs for the action.
+  api_key:
+    description: Your FastEdge API key.
+    required: true
+  wasm_file:
+    description: Path to the WASM binary file to deploy.
+    required: true
+  app_name:
+    description: Name of the application.
+    required: true
+
+  # Optional inputs for the action.
+  api_url:
+    description: The base URL of the FastEdge API.
+    required: false
+    default: 'https://api.gcore.com'
+  app_id:
+    description: Unique identifier of the application.
+    required: false
+    default: 0
+  comment:
+    description: Description of the application.
+    required: true
+  rsp_headers:
+    description: Response headers for your application as a JSON string.
+    required: false
+    default: '{}'
+  env:
+    description: Environment variables for your application as a JSON string.
+    required: false
+    default: '{}'
+  secrets:
+    description: Secret variables for your application as a JSON string.
+    required: false
+    default: '{}'
+
+# Define your outputs here.
+outputs:
+  binary_id:
+    description: The ID of the uploaded binary.
+  app_id:
+    description: The ID of the created application.
+
+runs:
+  using: node20
+  main: ../dist/deploy-app/index.js

@@ -1,0 +1,13 @@
+name: 'FastEdge: Stub'
+description:
+  "Stub: Don't use this action directly. Read [the
+  documentation](https://github.com/G-Core/FastEdge-examples) instead."
+author: 'GitHub'
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Stub'
+      run: |
+        echo 'This is a stub. Read [the documentation](https://github.com/G-Core/FastEdge-examples) instead.'
+        exit 1
+      shell: bash

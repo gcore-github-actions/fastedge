@@ -1,0 +1,94 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test-typescript:
+    name: TypeScript Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        id: setup-node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install Dependencies
+        id: npm-ci
+        run: npm ci
+
+      - name: Check Format
+        id: npm-format-check
+        run: npm run format:check
+
+      - name: Lint
+        id: npm-lint
+        run: npm run lint
+
+      - name: Test
+        id: npm-ci-test
+        run: npm run ci-test
+
+  test-secrets-action:
+    name: GitHub Actions Secrets Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Test Local Action
+        id: test-secret-action
+        uses: ./secrets
+        with:
+          api_key: ${{ secrets.API_KEY }}
+          api_url: ${{ vars.API_URL }}
+          secret_name: github-local-secret
+          secret_value: test-value
+          comment: 'Test secret for GitHub Actions CI test'
+
+      - name: Print Output
+        id: output
+        run: |
+          echo "secret_id: ${{ steps.test-secret-action.outputs.secret_id }}"
+
+  test-application-action:
+    name: GitHub Actions Deploy-App Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Test Local Action
+        id: test-deploy-app-action
+        uses: ./deploy-app
+        with:
+          api_key: ${{ secrets.API_KEY }}
+          api_url: ${{ vars.API_URL }}
+          app_name: 'github-local-app'
+          wasm_file: 'public/test.wasm'
+          comment: 'Test application for GitHub Actions CI test'
+
+      - name: Print Output
+        id: output
+        run: |
+          echo "app_id: ${{ steps.test-deploy-app-action.outputs.app_id }}"
+          echo "binary_id: ${{ steps.test-deploy-app-action.outputs.binary_id }}"
