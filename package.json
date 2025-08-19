@@ -1,17 +1,16 @@
 {
-  "name": "typescript-action",
-  "description": "GitHub Actions TypeScript template",
+  "name": "fastedge",
+  "description": "FastEdge GitHub Actions",
   "version": "1.0.0",
-  "author": "",
+  "author": "Gcore",
   "type": "module",
   "private": true,
-  "homepage": "https://github.com/actions/typescript-action",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/gcore-github-actions/fastedge.git"
   },
   "bugs": {
-    "url": "https://github.com/actions/typescript-action/issues"
+    "url": "https://github.com/gcore-github-actions/fastedge/issues"
   },
   "keywords": [
     "actions"

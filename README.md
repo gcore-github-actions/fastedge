@@ -1,7 +1,7 @@
 # FastEdge GitHub Actions
 
 [![GitHub Super-Linter](https://github.com/gcore-github-actions/fastedge/actions/workflows/linter.yml/badge.svg)](https://github.com/gcore-github-actions/fastedge/actions/workflows/linter.yml)
-[![CI](https://github.com/gcore-github-actions/fastedge/actions//workflows/ci.yml/badge.svg)](https://github.com/gcore-github-actions/fastedge/actions/workflows/ci.yml)
+[![CI](https://github.com/gcore-github-actions/fastedge/actions/workflows/ci.yml/badge.svg)](https://github.com/gcore-github-actions/fastedge/actions/workflows/ci.yml)
 [![Check dist/](https://github.com/gcore-github-actions/fastedge/actions/workflows/check-dist.yml/badge.svg)](https://github.com/gcore-github-actions/fastedge/actions/workflows/check-dist.yml)
 [![CodeQL](https://github.com/gcore-github-actions/fastedge/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/gcore-github-actions/fastedge/actions/workflows/codeql-analysis.yml)
 [![Coverage](./badges/coverage.svg)](./badges/coverage.svg)
