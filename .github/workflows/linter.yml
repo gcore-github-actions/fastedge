@@ -57,4 +57,5 @@ jobs:
           VALIDATE_JSON: false
           VALIDATE_TYPESCRIPT_STANDARD: false
           VALIDATE_ENV: false
+          VALIDATE_MARKDOWN: false
           VALIDATE_GITLEAKS: false

@@ -110,8 +110,8 @@ jobs:
 >
 > This action is configured to only make updates if it detects changes.
 
-When building wasm binaries within your workflows, each time you create a new
-wasm the calculated checksum of this binary will change.
+When building Wasm binaries within your workflows, each time you create a new
+Wasm the calculated checksum of this binary will change.
 
 This will inadvertently make the action upload a new binary ( i.e. it thinks it
 is different, even if the code has not changed).
@@ -123,14 +123,14 @@ application to be replicated across the entire edge network.
 
 ##### Solution 1:
 
-Only ever keep single applications per repo and workflow. This means the
+Only ever keep single applications per repository and workflow. This means the
 workflow will only ever run if actual code changes to the specific application
 have been made.
 
 ##### Solution 2:
 
-Create release artifacts that contain your built wasm binaries. This way you
-only update binaries if code has changed and keep referencing the old wasm
+Create release artifacts that contain your built Wasm binaries. This way you
+only update binaries if code has changed and keep referencing the old Wasm
 binaries when there are no changes. This way the binary checksums will be
 calculated correctly.
 
