@@ -123,9 +123,9 @@ application to be replicated across the entire edge network.
 
 ##### Solution 1:
 
-Only ever keep single applications per repository and workflow. This means the
-workflow will only ever run if actual code changes to the specific application
-have been made.
+Only ever manage a single application per GitHub workflow. Taking advantage of
+the `paths` feature. This means the workflow will only ever run if actual code
+changes to the specific application have been made.
 
 ##### Solution 2:
 
@@ -134,8 +134,8 @@ only update binaries if code has changed and keep referencing the old Wasm
 binaries when there are no changes. This way the binary checksums will be
 calculated correctly.
 
-You can see an example of how this release artifact method is accomplished in
-[FastEdge-examples](https://github.com/G-Core/FastEdge-examples)
+> You can see examples of how both these solutions are accomplished in
+> [FastEdge-examples](https://github.com/G-Core/FastEdge-examples/blob/main/github-examples/README.md)
 
 ## Development
 
