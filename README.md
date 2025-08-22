@@ -6,8 +6,8 @@
 [![CodeQL](https://github.com/gcore-github-actions/fastedge/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/gcore-github-actions/fastedge/actions/workflows/codeql-analysis.yml)
 [![Coverage](./badges/coverage.svg)](./badges/coverage.svg)
 
-The `fastedge` GitHub Action provides actions for deploying Secrets and FastEdge
-applications.
+These FastEdge GitHub Actions are used for deploying Secrets and FastEdge
+applications in CI/CD workflows.
 
 ## Usage
 

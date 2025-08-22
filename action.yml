@@ -1,7 +1,5 @@
 name: ' FastEdge Deploy Actions'
-description:
-  "Stub: Don't use this action directly. Read [the
-  documentation](https://github.com/gcore-github-actions/fastedge) instead."
+description: 'Use these Actions to deploy to FastEdge.'
 author: 'GitHub'
 
 branding:
