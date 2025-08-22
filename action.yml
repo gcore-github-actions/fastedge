@@ -1,13 +1,19 @@
-name: 'FastEdge: Stub'
+name: ' FastEdge Deploy Actions'
 description:
   "Stub: Don't use this action directly. Read [the
-  documentation](https://github.com/G-Core/FastEdge-examples) instead."
+  documentation](https://github.com/gcore-github-actions/fastedge/blob/main/README.md)
+  instead."
 author: 'GitHub'
+
+branding:
+  icon: upload-cloud
+  color: orange
+
 runs:
   using: 'composite'
   steps:
     - name: 'Stub'
       run: |
-        echo 'This is a stub. Read [the documentation](https://github.com/G-Core/FastEdge-examples) instead.'
+        echo 'This is a stub. Read [the documentation](https://github.com/gcore-github-actions/fastedge/blob/main/README.md) instead.'
         exit 1
       shell: bash

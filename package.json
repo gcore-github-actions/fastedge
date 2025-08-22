@@ -1,7 +1,7 @@
 {
   "name": "fastedge",
   "description": "FastEdge GitHub Actions",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Gcore",
   "type": "module",
   "private": true,
