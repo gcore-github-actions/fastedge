@@ -21,3 +21,9 @@ Please see the individual readme's for usage of each action:
 
 - [Secrets Action](./secrets/SECRETS.md)
 - [Deploy-app Action](./deploy-app/DEPLOY-APP.md)
+
+#### For more examples
+
+Please see our
+[FastEdge-examples](https://github.com/G-Core/FastEdge-examples/blob/main/github-actions/README.md)
+repository.
