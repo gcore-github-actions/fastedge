@@ -3,7 +3,7 @@
 [![GitHub Super-Linter](https://github.com/gcore-github-actions/fastedge/actions/workflows/linter.yaml/badge.svg)](https://github.com/gcore-github-actions/fastedge/actions/workflows/linter.yaml)
 [![CI](https://github.com/gcore-github-actions/fastedge/actions/workflows/ci.yaml/badge.svg)](https://github.com/gcore-github-actions/fastedge/actions/workflows/ci.yaml)
 [![Check dist/](https://github.com/gcore-github-actions/fastedge/actions/workflows/check-dist.yaml/badge.svg)](https://github.com/gcore-github-actions/fastedge/actions/workflows/check-dist.yaml)
-[![CodeQL](https://github.com/gcore-github-actions/fastedge/actions/workflows/codeql-analysis.yaml/badge.svg)](https://github.com/gcore-github-actions/fastedge/actions/workflows/codeql-analysis.yaml)
+[![CodeQL](https://github.com/gcore-github-actions/fastedge/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/gcore-github-actions/fastedge/actions/workflows/codeql-analysis.yml)
 [![Coverage](./badges/coverage.svg)](./badges/coverage.svg)
 
 These FastEdge GitHub Actions are used for deploying Secrets and FastEdge
