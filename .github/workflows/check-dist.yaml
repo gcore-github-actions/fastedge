@@ -30,16 +30,8 @@ jobs:
         id: checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        id: setup-node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .node-version
-          cache: npm
-
-      - name: Install Dependencies
-        id: install
-        run: npm ci
+      - name: Setup Node Environment
+        uses: ./.github/setup-node
 
       - name: Build dist/ Directory
         id: build

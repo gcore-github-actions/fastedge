@@ -23,12 +23,12 @@ it is generated from.
 | `dist/`                | Generated JavaScript Code                                |
 | `src/`                 | TypeScript Source Code                                   |
 | `.env.example`         | Environment Variables Example for `@github/local-action` |
-| `.licensed.yml`        | Licensed Configuration                                   |
-| `.markdown-lint.yml`   | Markdown Linter Configuration                            |
+| `.fossa.yaml`          | Licensed Configuration                                   |
+| `.markdown-lint.yaml   | Markdown Linter Configuration                            |
 | `.node-version`        | Node.js Version Configuration                            |
-| `.prettierrc.yml`      | Prettier Formatter Configuration                         |
-| `.yaml-lint.yml`       | YAML Linter Configuration                                |
-| `action.yml`           | GitHub Action Metadata                                   |
+| `.prettierrc.yaml`     | Prettier Formatter Configuration                         |
+| `.yaml-lint.yaml`      | YAML Linter Configuration                                |
+| `action.yaml`          | GitHub Action Metadata                                   |
 | `CODEOWNERS`           | Code Owners File                                         |
 | `eslint.config.mjs`    | ESLint Configuration                                     |
 | `jest.config.js`       | Jest Configuration                                       |

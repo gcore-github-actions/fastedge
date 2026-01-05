@@ -73,8 +73,7 @@ type AppsOrderingFields =
   | 'template'
 
 interface GetAppsQueryParams
-  extends PaginationParams,
-    OrderingParams<AppsOrderingFields> {
+  extends PaginationParams, OrderingParams<AppsOrderingFields> {
   api_type?: ApiType
   name?: string
   binary?: number
