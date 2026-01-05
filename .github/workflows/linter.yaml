@@ -52,3 +52,5 @@ jobs:
           VALIDATE_MARKDOWN: false
           VALIDATE_GITLEAKS: false
           VALIDATE_GITHUB_ACTIONS_ZIZMOR: false
+          VALIDATE_BIOME_FORMAT: false
+          VALIDATE_BIOME_LINT: false

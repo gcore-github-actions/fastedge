@@ -13,8 +13,7 @@ jobs:
   fossa:
     runs-on: ubuntu-latest
 
-    if:
-      github.actor != 'dependabot[bot]' && github.repository == 'G-Core/as-jwt'
+    if: github.actor != 'dependabot[bot]'
 
     steps:
       - name: Checkout repository
@@ -25,8 +24,8 @@ jobs:
           curl -H 'Cache-Control: no-cache' https://raw.githubusercontent.com/fossas/fossa-cli/master/install-latest.sh | bash
 
       - name: Set FOSSA API Key
-        run:
-          echo "FOSSA_API_KEY=${{ secrets.FOSSA_PUB_API_KEY }}" >> $GITHUB_ENV
+        run: |
+          echo "FOSSA_API_KEY=${{ secrets.FOSSA_PUB_API_KEY }}" >> "$GITHUB_ENV"
 
       - name: Run FOSSA Analysis
         run: fossa analyze

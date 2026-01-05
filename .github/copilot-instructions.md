@@ -24,7 +24,7 @@ it is generated from.
 | `src/`                 | TypeScript Source Code                                   |
 | `.env.example`         | Environment Variables Example for `@github/local-action` |
 | `.fossa.yaml`          | Licensed Configuration                                   |
-| `.markdown-lint.yaml   | Markdown Linter Configuration                            |
+| `.markdown-lint.yaml`  | Markdown Linter Configuration                            |
 | `.node-version`        | Node.js Version Configuration                            |
 | `.prettierrc.yaml`     | Prettier Formatter Configuration                         |
 | `.yaml-lint.yaml`      | YAML Linter Configuration                                |

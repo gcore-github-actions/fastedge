@@ -156,8 +156,8 @@ calculated correctly.
 2. A workflow will run and generate a new draft release for you based on the tag
    you entered.
 3. Open the
-   [Releases](https://github.com/gcore-github-actions/fastedge/releases)
-   page and go to the draft release.
+   [Releases](https://github.com/gcore-github-actions/fastedge/releases) page
+   and go to the draft release.
 4. Make sure the `Publish this release to the GitHub Marketplace` checkbox is
    checked and changelog is correct.
 5. Publish the new release.
