@@ -26,20 +26,12 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        id: setup-node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .node-version
-          cache: npm
-
-      - name: Install Dependencies
-        id: install
-        run: npm ci
+      - name: Setup Node Environment
+        uses: ./.github/setup-node
 
       - name: Lint Codebase
         id: super-linter
@@ -60,3 +52,5 @@ jobs:
           VALIDATE_MARKDOWN: false
           VALIDATE_GITLEAKS: false
           VALIDATE_GITHUB_ACTIONS_ZIZMOR: false
+          VALIDATE_BIOME_FORMAT: false
+          VALIDATE_BIOME_LINT: false

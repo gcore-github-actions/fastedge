@@ -153,12 +153,12 @@ calculated correctly.
 ## Releasing
 
 1. Run the `./script/release` script to create and push a new tag.
-1. A workflow will run and generate a new draft release for you based on the tag
+2. A workflow will run and generate a new draft release for you based on the tag
    you entered.
-1. Open the
-   [Releases](https://github.com/gcore-github-actions/deploy-container/releases)
-   page and go to the draft release.
-1. Make sure the `Publish this release to the GitHub Marketplace` checkbox is
+3. Open the
+   [Releases](https://github.com/gcore-github-actions/fastedge/releases) page
+   and go to the draft release.
+4. Make sure the `Publish this release to the GitHub Marketplace` checkbox is
    checked and changelog is correct.
-1. Publish the new release.
-1. Move the major version tag (e.g. v1) to the latest patch release.
+5. Publish the new release.
+6. Move the major version tag (e.g. v1) to the latest patch release.
