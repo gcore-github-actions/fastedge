@@ -53,6 +53,8 @@ outputs:
     description: The ID of the uploaded binary.
   app_id:
     description: The ID of the created application.
+  app_url:
+    description: The URL of the created application, wasi-http only.
 
 runs:
   using: node20
