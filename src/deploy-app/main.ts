@@ -3,6 +3,8 @@ import * as core from '@actions/core'
 import {
   CreateAppResource,
   FastEdgeClient,
+  GetAppResponse,
+  GetAppResponseWithBinary,
   GetBinaryResponse,
   UpdateAppResource,
   UploadBinaryResponse
@@ -10,6 +12,20 @@ import {
 
 import { isUpdateNeeded } from './changes.js'
 import { createAppResourceFromInputs, hasWasmBinaryChanged } from './utils.js'
+
+function setActionOutputs(
+  app: GetAppResponse | GetAppResponseWithBinary
+): void {
+  core.setOutput('app_id', app.id)
+  if (app.url) {
+    core.setOutput('app_url', app.url)
+  }
+  if (typeof app.binary === 'number') {
+    core.setOutput('binary_id', app.binary)
+  } else if (app.binary && typeof app.binary === 'object') {
+    core.setOutput('binary_id', app.binary.id)
+  }
+}
 
 /**
  * The main function for the action.
@@ -36,7 +52,7 @@ export async function run(): Promise<void> {
     const fastEdgeClient = new FastEdgeClient(apiKey, apiUrl)
 
     // Check if the app exists
-    let app
+    let app: GetAppResponseWithBinary | undefined
     if (appId && appId !== '0') {
       app = await fastEdgeClient.apps.get(appId).includeBinary()
       core.info(`Found application with ID: ${appId}`)
@@ -59,8 +75,7 @@ export async function run(): Promise<void> {
 
       const createdApp = await fastEdgeClient.apps.create(appResource)
       core.notice(`Application created with ID: ${createdApp.id}`)
-      core.setOutput('app_id', createdApp.id)
-      core.setOutput('binary_id', createdApp.binary)
+      setActionOutputs(createdApp)
       return
     }
 
@@ -79,13 +94,11 @@ export async function run(): Promise<void> {
     if (isUpdateNeeded(appResource, app)) {
       const updatedApp = await fastEdgeClient.apps.update(appResource)
       core.notice(`Application updated with ID: ${updatedApp.id}`)
-      core.setOutput('app_id', updatedApp.id)
-      core.setOutput('binary_id', updatedApp.binary)
+      setActionOutputs(updatedApp)
       return
     } else {
       core.info('No changes detected, skipping update.')
-      core.setOutput('app_id', appResource.id)
-      core.setOutput('binary_id', appResource.binary)
+      setActionOutputs(app)
     }
   } catch (error) {
     // Fail the workflow run if an error occurs

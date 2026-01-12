@@ -31052,6 +31052,18 @@ function hasWasmBinaryChanged(knownHash) {
     return checksum !== knownHash;
 }
 
+function setActionOutputs(app) {
+    coreExports.setOutput('app_id', app.id);
+    if (app.url) {
+        coreExports.setOutput('app_url', app.url);
+    }
+    if (typeof app.binary === 'number') {
+        coreExports.setOutput('binary_id', app.binary);
+    }
+    else if (app.binary && typeof app.binary === 'object') {
+        coreExports.setOutput('binary_id', app.binary.id);
+    }
+}
 /**
  * The main function for the action.
  *
@@ -31094,8 +31106,7 @@ async function run() {
             };
             const createdApp = await fastEdgeClient.apps.create(appResource);
             coreExports.notice(`Application created with ID: ${createdApp.id}`);
-            coreExports.setOutput('app_id', createdApp.id);
-            coreExports.setOutput('binary_id', createdApp.binary);
+            setActionOutputs(createdApp);
             return;
         }
         coreExports.info(`Updating application with name: ${appName}`);
@@ -31112,14 +31123,12 @@ async function run() {
         if (isUpdateNeeded(appResource, app)) {
             const updatedApp = await fastEdgeClient.apps.update(appResource);
             coreExports.notice(`Application updated with ID: ${updatedApp.id}`);
-            coreExports.setOutput('app_id', updatedApp.id);
-            coreExports.setOutput('binary_id', updatedApp.binary);
+            setActionOutputs(updatedApp);
             return;
         }
         else {
             coreExports.info('No changes detected, skipping update.');
-            coreExports.setOutput('app_id', appResource.id);
-            coreExports.setOutput('binary_id', appResource.binary);
+            setActionOutputs(app);
         }
     }
     catch (error) {

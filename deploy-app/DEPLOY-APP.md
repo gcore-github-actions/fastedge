@@ -68,6 +68,7 @@ jobs:
 
 - `binary_id`: The unique ID allocated to the uploaded binary.
 - `app_id`: The unique ID allocated to the application.
+- `app_url`: The URL allocated to the application ( wasi-http only ).
 
 ## Alternate Usage with Strings
 
