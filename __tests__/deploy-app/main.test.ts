@@ -149,6 +149,41 @@ describe('main.ts', () => {
         )
       })
 
+      it('sets app_url output when app has url', async () => {
+        const mockApp = {
+          id: 789,
+          name: mockAppName,
+          binary: { id: 123, checksum: 'abc123' },
+          url: 'https://test-app.example.com',
+          env: { NODE_ENV: 'production' },
+          comment: 'Same comment'
+        }
+        const mockAppResource = {
+          id: 789,
+          name: mockAppName,
+          binary: 123,
+          env: { NODE_ENV: 'production' },
+          comment: 'Same comment'
+        }
+
+        const mockGetAppChain = {
+          includeBinary: jest.fn().mockImplementation(() => mockApp)
+        }
+        mockGetApp.mockReturnValue(mockGetAppChain)
+        mockHasWasmBinaryChanged.mockReturnValue(false)
+        mockCreateAppResourceFromInputs.mockReturnValue(mockAppResource)
+        mockIsUpdateNeeded.mockReturnValue(false) // No changes detected
+
+        await run()
+
+        expect(mockSetOutput).toHaveBeenCalledWith('app_id', mockApp.id)
+        expect(mockSetOutput).toHaveBeenCalledWith('app_url', mockApp.url)
+        expect(mockSetOutput).toHaveBeenCalledWith(
+          'binary_id',
+          mockApp.binary.id
+        )
+      })
+
       it('skips update when no changes are detected', async () => {
         const mockApp = {
           id: 789,
@@ -330,6 +365,48 @@ describe('main.ts', () => {
         })
       })
 
+      it('looks up app by name when app_id is "0"', async () => {
+        mockGetInput.mockImplementation((name: string) => {
+          const inputs: Record<string, string> = {
+            api_key: mockApiKey,
+            api_url: mockApiUrl,
+            wasm_file: mockWasmFile,
+            app_name: mockAppName,
+            app_id: '0' // Explicitly set to '0'
+          }
+          return inputs[name] || ''
+        })
+
+        const mockApp = {
+          id: 789,
+          name: mockAppName,
+          binary: { id: 123, checksum: 'abc123' },
+          env: { NODE_ENV: 'production' },
+          comment: 'Same comment'
+        }
+        const mockAppResource = {
+          name: mockAppName,
+          binary: 123,
+          env: { NODE_ENV: 'production' },
+          comment: 'Same comment'
+        }
+
+        const mockGetAppByNameChain = {
+          includeBinary: jest.fn().mockImplementation(() => mockApp)
+        }
+        mockGetAppByName.mockReturnValue(mockGetAppByNameChain)
+        mockHasWasmBinaryChanged.mockReturnValue(false)
+        mockCreateAppResourceFromInputs.mockReturnValue(mockAppResource)
+        mockIsUpdateNeeded.mockReturnValue(false)
+
+        await run()
+
+        // Should use getAppByName, not getApp
+        expect(mockGetApp).not.toHaveBeenCalled()
+        expect(mockGetAppByName).toHaveBeenCalledWith(mockAppName)
+        expect(mockGetAppByNameChain.includeBinary).toHaveBeenCalled()
+      })
+
       it('updates existing app by name when changes are detected', async () => {
         const mockApp = {
           id: 789,
@@ -477,6 +554,40 @@ describe('main.ts', () => {
           mockCreatedApp.binary
         )
         expect(mockIsUpdateNeeded).not.toHaveBeenCalled() // Should not be called for new apps
+      })
+
+      it('creates new application with url and sets app_url output', async () => {
+        const mockBinary = { id: 123, checksum: 'abc123' }
+        const mockAppResource = { name: mockAppName, binary: 123 }
+        const mockCreatedApp = {
+          id: 456,
+          name: mockAppName,
+          binary: 123,
+          url: 'https://test-app.example.com'
+        }
+
+        mockGetAppByName.mockImplementation(() => {
+          throw new Error('Not found')
+        })
+        mockUploadBinary.mockImplementation(() => mockBinary)
+        mockCreateAppResourceFromInputs.mockReturnValue(mockAppResource)
+        mockCreateApp.mockImplementation(() => mockCreatedApp)
+
+        await run()
+
+        expect(mockCreateApp).toHaveBeenCalledWith({
+          ...mockAppResource,
+          binary: mockBinary.id
+        })
+        expect(mockSetOutput).toHaveBeenCalledWith('app_id', mockCreatedApp.id)
+        expect(mockSetOutput).toHaveBeenCalledWith(
+          'app_url',
+          mockCreatedApp.url
+        )
+        expect(mockSetOutput).toHaveBeenCalledWith(
+          'binary_id',
+          mockCreatedApp.binary
+        )
       })
 
       it('uploads new binary when binary has changed for existing app', async () => {
@@ -656,6 +767,31 @@ describe('main.ts', () => {
             'Mandatory inputs are missing: api_key, api_url, wasm_file'
           )
         )
+      })
+
+      it('handles non-Error exceptions gracefully', async () => {
+        mockGetInput.mockImplementation((name: string) => {
+          const inputs: Record<string, string> = {
+            api_key: mockApiKey,
+            api_url: mockApiUrl,
+            wasm_file: mockWasmFile,
+            app_name: mockAppName,
+            app_id: '123'
+          }
+          return inputs[name] || ''
+        })
+
+        const nonErrorException = 'String error instead of Error object'
+
+        mockGetApp.mockImplementation(() => {
+          throw nonErrorException
+        })
+
+        await run()
+
+        // Should not call setFailed since it's not an Error instance
+        // The error will propagate but setFailed won't be called in the catch block
+        expect(mockSetFailed).not.toHaveBeenCalled()
       })
     })
   })
