@@ -4,6 +4,7 @@ import { ApiConfig } from './types.js'
 import * as apps from './apps/index.js'
 import * as binaries from './binaries/index.js'
 import * as secrets from './secrets/index.js'
+import * as templates from './templates/index.js'
 
 /**
  * FastEdge API client providing access to all API endpoints
@@ -126,6 +127,47 @@ export class FastEdgeClient {
        */
       update: (resource: Parameters<typeof secrets.updateSecret>[1]) =>
         secrets.updateSecret(this.apiConfig, resource)
+    }
+  }
+
+  /**
+   * Access template-related API endpoints
+   */
+  get templates() {
+    return {
+      /**
+       * Get a list of templates
+       * @param params - Query parameters for filtering and pagination
+       */
+      getAll: (params: Parameters<typeof templates.getTemplates>[1] = {}) =>
+        templates.getTemplates(this.apiConfig, params),
+
+      /**
+       * Get a specific template by ID
+       * @param id - Template ID
+       */
+      get: (id: number | string) => templates.getTemplate(this.apiConfig, id),
+
+      /**
+       * Get a specific template by name (scans owned templates)
+       * @param name - Template name
+       */
+      getByName: (name: string) =>
+        templates.getTemplateByName(this.apiConfig, name),
+
+      /**
+       * Create a new template
+       * @param resource - Template creation parameters
+       */
+      create: (resource: Parameters<typeof templates.createTemplate>[1]) =>
+        templates.createTemplate(this.apiConfig, resource),
+
+      /**
+       * Update an existing template
+       * @param resource - Template update parameters
+       */
+      update: (resource: Parameters<typeof templates.updateTemplate>[1]) =>
+        templates.updateTemplate(this.apiConfig, resource)
     }
   }
 }

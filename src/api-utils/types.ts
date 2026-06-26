@@ -20,3 +20,4 @@ export type { ApiConfig, ApiType, PaginationParams, OrderingParams }
 export * from './apps/types.js'
 export * from './binaries/types.js'
 export * from './secrets/types.js'
+export * from './templates/types.js'

@@ -30,9 +30,11 @@
     "lint": "npx eslint .",
     "local-action:app": "npx @github/local-action . src/deploy-app/main.ts .env.deploy-app",
     "local-action:secret": "npx @github/local-action ./secrets ../src/secrets/main.ts .env.secrets",
+    "local-action:template": "npx @github/local-action . src/deploy-template/main.ts .env.deploy-template",
     "package:app": "npx rollup --config rollup-app.config.ts --configPlugin @rollup/plugin-typescript",
     "package:secret": "npx rollup --config rollup-secret.config.ts --configPlugin @rollup/plugin-typescript",
-    "package": "npm-run-all -p package:app package:secret",
+    "package:deploy-template": "npx rollup --config rollup-deploy-template.config.ts --configPlugin @rollup/plugin-typescript",
+    "package": "npm-run-all -p package:app package:secret package:deploy-template",
     "package:watch": "npm run package -- --watch",
     "test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 npx jest",
     "all": "npm-run-all -s format:write lint test coverage package"

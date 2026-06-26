@@ -34571,6 +34571,104 @@ async function updateSecret(apiConfig, secret) {
     }
 }
 
+async function getTemplate(apiConfig, id) {
+    try {
+        const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/template/${id}`, {
+            method: 'GET',
+            headers: {
+                Authorization: `APIKey ${apiConfig.apiKey}`
+            }
+        });
+        if (!response.ok) {
+            throw new Error(response.statusText);
+        }
+        const template = (await response.json());
+        return {
+            ...template,
+            id: Number.parseInt(id.toString(), 10) // Ensure ID is included as a number
+        };
+    }
+    catch (error) {
+        throw new Error(`Error fetching template: ${error instanceof Error ? error.message : error}`);
+    }
+}
+async function getTemplates(apiConfig, query = {}) {
+    try {
+        const queryString = qs.stringify(query, {
+            skipNulls: true,
+            addQueryPrefix: true
+        });
+        const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/template${queryString}`, {
+            method: 'GET',
+            headers: {
+                Authorization: `APIKey ${apiConfig.apiKey}`
+            }
+        });
+        if (!response.ok) {
+            throw new Error(response.statusText);
+        }
+        const jsonResponse = (await response.json());
+        return jsonResponse.templates ?? [];
+    }
+    catch (error) {
+        throw new Error(`Error fetching templates: ${error instanceof Error ? error.message : error}`);
+    }
+}
+// Template list API has no name filter — scan owned templates (max 200)
+async function getTemplateByName(apiConfig, name) {
+    const templates = await getTemplates(apiConfig, {
+        only_mine: true,
+        limit: 200
+    });
+    const match = templates.find((t) => t.name === name);
+    if (!match) {
+        throw new Error(`Template with name "${name}" not found`);
+    }
+    return getTemplate(apiConfig, match.id);
+}
+async function createTemplate(apiConfig, template) {
+    try {
+        const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/template`, {
+            method: 'POST',
+            headers: {
+                Authorization: `APIKey ${apiConfig.apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(template)
+        });
+        if (!response.ok) {
+            throw new Error(response.statusText);
+        }
+        return response.json();
+    }
+    catch (error) {
+        throw new Error(`Error creating template: ${error instanceof Error ? error.message : error}`);
+    }
+}
+async function updateTemplate(apiConfig, template) {
+    try {
+        const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/template/${template.id}`, {
+            method: 'PUT',
+            headers: {
+                Authorization: `APIKey ${apiConfig.apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(template)
+        });
+        if (!response.ok) {
+            throw new Error(response.statusText);
+        }
+        const updated = (await response.json());
+        return {
+            ...updated,
+            id: Number.parseInt(template.id.toString(), 10) // Ensure ID is always a number
+        };
+    }
+    catch (error) {
+        throw new Error(`Error updating template: ${error instanceof Error ? error.message : error}`);
+    }
+}
+
 /* istanbul ignore file */
 /**
  * FastEdge API client providing access to all API endpoints
@@ -34665,6 +34763,38 @@ class FastEdgeClient {
              * @param resource - Secret update parameters
              */
             update: (resource) => updateSecret(this.apiConfig, resource)
+        };
+    }
+    /**
+     * Access template-related API endpoints
+     */
+    get templates() {
+        return {
+            /**
+             * Get a list of templates
+             * @param params - Query parameters for filtering and pagination
+             */
+            getAll: (params = {}) => getTemplates(this.apiConfig, params),
+            /**
+             * Get a specific template by ID
+             * @param id - Template ID
+             */
+            get: (id) => getTemplate(this.apiConfig, id),
+            /**
+             * Get a specific template by name (scans owned templates)
+             * @param name - Template name
+             */
+            getByName: (name) => getTemplateByName(this.apiConfig, name),
+            /**
+             * Create a new template
+             * @param resource - Template creation parameters
+             */
+            create: (resource) => createTemplate(this.apiConfig, resource),
+            /**
+             * Update an existing template
+             * @param resource - Template update parameters
+             */
+            update: (resource) => updateTemplate(this.apiConfig, resource)
         };
     }
 }
