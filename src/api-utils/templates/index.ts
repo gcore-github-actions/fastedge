@@ -117,15 +117,16 @@ async function updateTemplate(
   template: UpdateTemplateResource
 ): Promise<TemplateShort> {
   try {
+    const { id, ...body } = template
     const response = await fetch(
-      `${apiConfig.apiUrl}/fastedge/v1/template/${template.id}`,
+      `${apiConfig.apiUrl}/fastedge/v1/template/${id}`,
       {
         method: 'PUT',
         headers: {
           Authorization: `APIKey ${apiConfig.apiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(template)
+        body: JSON.stringify(body)
       }
     )
     if (!response.ok) {
@@ -134,7 +135,7 @@ async function updateTemplate(
     const updated = (await response.json()) as TemplateShort
     return {
       ...updated,
-      id: Number.parseInt(template.id.toString(), 10) // Ensure ID is always a number
+      id
     }
   } catch (error) {
     throw new Error(

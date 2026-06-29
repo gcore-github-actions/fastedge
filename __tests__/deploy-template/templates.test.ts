@@ -217,7 +217,10 @@ describe('updateTemplate', () => {
 
     expect(spy).toHaveBeenCalledWith(
       'https://api.example.com/fastedge/v1/template/100',
-      expect.objectContaining({ method: 'PUT', body: JSON.stringify(resource) })
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ ...resource, id: undefined })
+      })
     )
     expect(result.id).toBe(100)
   })

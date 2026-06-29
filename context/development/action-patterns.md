@@ -13,8 +13,8 @@ deploy-template/
 └── action.yml                        # GitHub Actions metadata — inputs, outputs, runs
 
 src/deploy-template/
-├── main.ts                           # Entry point: reads @actions/core inputs, calls run()
-├── index.ts                          # Orchestration: business logic, API calls, setOutput()
+├── index.ts                          # Entry point: imports and calls run() from main.ts
+├── main.ts                           # Orchestration: business logic, API calls, setOutput()
 ├── changes.ts                        # Change detection: compare desired state vs live state
 └── utils.ts                          # Input parsing helpers
 
@@ -57,16 +57,16 @@ runs:
   main: '../dist/deploy-template/index.js'
 ```
 
-### `main.ts` pattern
+### `index.ts` pattern
 
 ```typescript
 import * as core from '@actions/core'
-import { run } from './index.js'
+import { run } from './main.js'
 
 run()
 ```
 
-### `index.ts` (orchestration) pattern
+### `main.ts` (orchestration) pattern
 
 ```typescript
 import * as core from '@actions/core'
@@ -144,7 +144,7 @@ import nodeResolve from '@rollup/plugin-node-resolve'
 import { type RollupOptions } from 'rollup'
 
 const config: RollupOptions = {
-  input: 'src/deploy-template/main.ts',
+  input: 'src/deploy-template/index.ts',
   output: { dir: 'dist/deploy-template', format: 'es', sourcemap: true },
   plugins: [nodeResolve({ preferBuiltins: true }), commonjs(), typescript()]
 }

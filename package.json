@@ -19,7 +19,7 @@
     ".": "./dist/index.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": "^22.22.2 || >=24.10.0"
   },
   "scripts": {
     "bundle": "npm-run-all -s format:write package",
