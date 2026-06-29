@@ -21,6 +21,7 @@ Please see the individual readme's for usage of each action:
 
 - [Secrets Action](./secrets/SECRETS.md)
 - [Deploy-app Action](./deploy-app/DEPLOY-APP.md)
+- [Deploy-template Action](./deploy-template/DEPLOY-TEMPLATE.md)
 
 #### For more examples
 

@@ -11,11 +11,11 @@ a clear request, always distinguish observations from action requests.
 
 ## Project Goal
 
-GitHub Actions for deploying **Gcore FastEdge** WASM applications and secrets in
+GitHub Actions for deploying **Gcore FastEdge** Wasm applications and secrets in
 CI/CD workflows. Published to the GitHub Marketplace. Two composite actions ship
-from this repo:
+from this repository:
 
-- **`deploy-app`** — uploads a WASM binary and creates/updates a FastEdge HTTP
+- **`deploy-app`** — uploads a Wasm binary and creates/updates a FastEdge HTTP
   or Proxy-WASM app
 - **`secrets`** — creates/updates a named secret in the FastEdge secret store
 
@@ -25,7 +25,7 @@ push changes when state differs.
 ## Discovery
 
 **Read `context/INDEX.md`** — it is the discovery hub for all reference material
-in this repo.
+in this repository.
 
 ## Repository Structure
 
