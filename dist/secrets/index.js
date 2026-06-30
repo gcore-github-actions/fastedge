@@ -2932,15 +2932,24 @@ function requireDispatcherBase () {
 	const kOnDestroyed = Symbol('onDestroyed');
 	const kOnClosed = Symbol('onClosed');
 	const kInterceptedDispatch = Symbol('Intercepted Dispatch');
+	const kWebSocketOptions = Symbol('webSocketOptions');
 
 	class DispatcherBase extends Dispatcher {
-	  constructor () {
+	  constructor (opts) {
 	    super();
 
 	    this[kDestroyed] = false;
 	    this[kOnDestroyed] = null;
 	    this[kClosed] = false;
 	    this[kOnClosed] = [];
+	    this[kWebSocketOptions] = opts?.webSocket ?? {};
+	  }
+
+	  get webSocketOptions () {
+	    return {
+	      maxFragments: this[kWebSocketOptions].maxFragments ?? 131072,
+	      maxPayloadSize: this[kWebSocketOptions].maxPayloadSize ?? 128 * 1024 * 1024
+	    }
 	  }
 
 	  get destroyed () {
@@ -8890,6 +8899,9 @@ function requireClientH1 () {
 	const FastBuffer = Buffer[Symbol.species];
 	const addListener = util.addListener;
 	const removeAllListeners = util.removeAllListeners;
+	const kIdleSocketValidation = Symbol('kIdleSocketValidation');
+	const kIdleSocketValidationTimeout = Symbol('kIdleSocketValidationTimeout');
+	const kSocketUsed = Symbol('kSocketUsed');
 
 	let extractBody;
 
@@ -9112,27 +9124,69 @@ function requireClientH1 () {
 
 	      const offset = llhttp.llhttp_get_error_pos(this.ptr) - currentBufferPtr;
 
-	      if (ret === constants.ERROR.PAUSED_UPGRADE) {
-	        this.onUpgrade(data.slice(offset));
-	      } else if (ret === constants.ERROR.PAUSED) {
-	        this.paused = true;
-	        socket.unshift(data.slice(offset));
-	      } else if (ret !== constants.ERROR.OK) {
-	        const ptr = llhttp.llhttp_get_error_reason(this.ptr);
-	        let message = '';
-	        /* istanbul ignore else: difficult to make a test case for */
-	        if (ptr) {
-	          const len = new Uint8Array(llhttp.memory.buffer, ptr).indexOf(0);
-	          message =
-	            'Response does not match the HTTP/1.1 protocol (' +
-	            Buffer.from(llhttp.memory.buffer, ptr, len).toString() +
-	            ')';
+	      if (ret !== constants.ERROR.OK) {
+	        const body = data.subarray(offset);
+
+	        if (ret === constants.ERROR.PAUSED_UPGRADE) {
+	          this.onUpgrade(body);
+	        } else if (ret === constants.ERROR.PAUSED) {
+	          this.paused = true;
+	          socket.unshift(body);
+	        } else {
+	          throw this.createError(ret, body)
 	        }
-	        throw new HTTPParserError(message, constants.ERROR[ret], data.slice(offset))
 	      }
 	    } catch (err) {
 	      util.destroy(socket, err);
 	    }
+	  }
+
+	  finish () {
+	    assert(currentParser === null);
+	    assert(this.ptr != null);
+	    assert(!this.paused);
+
+	    const { llhttp } = this;
+
+	    let ret;
+
+	    try {
+	      currentParser = this;
+	      ret = llhttp.llhttp_finish(this.ptr);
+	    } finally {
+	      currentParser = null;
+	    }
+
+	    if (ret === constants.ERROR.OK) {
+	      return null
+	    }
+
+	    if (ret === constants.ERROR.PAUSED || ret === constants.ERROR.PAUSED_UPGRADE) {
+	      this.paused = true;
+	      return null
+	    }
+
+	    return this.createError(ret, EMPTY_BUF)
+	  }
+
+	  createError (ret, data) {
+	    const { llhttp, contentLength, bytesRead } = this;
+
+	    if (contentLength && bytesRead !== parseInt(contentLength, 10)) {
+	      return new ResponseContentLengthMismatchError()
+	    }
+
+	    const ptr = llhttp.llhttp_get_error_reason(this.ptr);
+	    let message = '';
+	    if (ptr) {
+	      const len = new Uint8Array(llhttp.memory.buffer, ptr).indexOf(0);
+	      message =
+	        'Response does not match the HTTP/1.1 protocol (' +
+	        Buffer.from(llhttp.memory.buffer, ptr, len).toString() +
+	        ')';
+	    }
+
+	    return new HTTPParserError(message, constants.ERROR[ret], data)
 	  }
 
 	  destroy () {
@@ -9159,6 +9213,11 @@ function requireClientH1 () {
 
 	    /* istanbul ignore next: difficult to make a test case for */
 	    if (socket.destroyed) {
+	      return -1
+	    }
+
+	    if (client[kRunning] === 0) {
+	      util.destroy(socket, new SocketError('bad response', util.getSocketInfo(socket)));
 	      return -1
 	    }
 
@@ -9262,6 +9321,11 @@ function requireClientH1 () {
 
 	    /* istanbul ignore next: difficult to make a test case for */
 	    if (socket.destroyed) {
+	      return -1
+	    }
+
+	    if (client[kRunning] === 0) {
+	      util.destroy(socket, new SocketError('bad response', util.getSocketInfo(socket)));
 	      return -1
 	    }
 
@@ -9438,6 +9502,7 @@ function requireClientH1 () {
 	    request.onComplete(headers);
 
 	    client[kQueue][client[kRunningIdx]++] = null;
+	    socket[kSocketUsed] = true;
 
 	    if (socket[kWriting]) {
 	      assert(client[kRunning] === 0);
@@ -9496,6 +9561,9 @@ function requireClientH1 () {
 	  socket[kWriting] = false;
 	  socket[kReset] = false;
 	  socket[kBlocking] = false;
+	  socket[kIdleSocketValidation] = 0;
+	  socket[kIdleSocketValidationTimeout] = null;
+	  socket[kSocketUsed] = false;
 	  socket[kParser] = new Parser(client, socket, llhttpInstance);
 
 	  addListener(socket, 'error', function (err) {
@@ -9506,8 +9574,11 @@ function requireClientH1 () {
 	    // On Mac OS, we get an ECONNRESET even if there is a full body to be forwarded
 	    // to the user.
 	    if (err.code === 'ECONNRESET' && parser.statusCode && !parser.shouldKeepAlive) {
-	      // We treat all incoming data so for as a valid response.
-	      parser.onMessageComplete();
+	      const parserErr = parser.finish();
+	      if (parserErr) {
+	        this[kError] = parserErr;
+	        this[kClient][kOnError](parserErr);
+	      }
 	      return
 	    }
 
@@ -9526,8 +9597,10 @@ function requireClientH1 () {
 	    const parser = this[kParser];
 
 	    if (parser.statusCode && !parser.shouldKeepAlive) {
-	      // We treat all incoming data so far as a valid response.
-	      parser.onMessageComplete();
+	      const parserErr = parser.finish();
+	      if (parserErr) {
+	        util.destroy(this, parserErr);
+	      }
 	      return
 	    }
 
@@ -9537,10 +9610,11 @@ function requireClientH1 () {
 	    const client = this[kClient];
 	    const parser = this[kParser];
 
+	    clearIdleSocketValidation(this);
+
 	    if (parser) {
 	      if (!this[kError] && parser.statusCode && !parser.shouldKeepAlive) {
-	        // We treat all incoming data so far as a valid response.
-	        parser.onMessageComplete();
+	        this[kError] = parser.finish() || this[kError];
 	      }
 
 	      this[kParser].destroy();
@@ -9603,7 +9677,7 @@ function requireClientH1 () {
 	      return socket.destroyed
 	    },
 	    busy (request) {
-	      if (socket[kWriting] || socket[kReset] || socket[kBlocking]) {
+	      if (socket[kWriting] || socket[kReset] || socket[kBlocking] || socket[kIdleSocketValidation] === 1) {
 	        return true
 	      }
 
@@ -9641,6 +9715,31 @@ function requireClientH1 () {
 	  }
 	}
 
+	function clearIdleSocketValidation (socket) {
+	  if (socket[kIdleSocketValidationTimeout]) {
+	    clearTimeout(socket[kIdleSocketValidationTimeout]);
+	    socket[kIdleSocketValidationTimeout] = null;
+	  }
+
+	  socket[kIdleSocketValidation] = 0;
+	}
+
+	function scheduleIdleSocketValidation (client, socket) {
+	  socket[kIdleSocketValidation] = 1;
+	  socket[kIdleSocketValidationTimeout] = setTimeout(() => {
+	    socket[kIdleSocketValidationTimeout] = null;
+	    socket[kIdleSocketValidation] = 2;
+
+	    if (client[kSocket] === socket && !socket.destroyed) {
+	      client[kResume]();
+	    }
+	  }, 0);
+	  socket[kIdleSocketValidationTimeout].unref?.();
+	}
+
+	/**
+	 * @param {import('./client.js')} client
+	 */
 	function resumeH1 (client) {
 	  const socket = client[kSocket];
 
@@ -9653,6 +9752,32 @@ function requireClientH1 () {
 	    } else if (socket[kNoRef] && socket.ref) {
 	      socket.ref();
 	      socket[kNoRef] = false;
+	    }
+
+	    if (client[kRunning] === 0 && client[kPending] > 0 && socket[kSocketUsed]) {
+	      if (socket[kIdleSocketValidation] === 0) {
+	        scheduleIdleSocketValidation(client, socket);
+	        socket[kParser].readMore();
+	        if (socket.destroyed) {
+	          return
+	        }
+	        return
+	      }
+
+	      if (socket[kIdleSocketValidation] === 1) {
+	        socket[kParser].readMore();
+	        if (socket.destroyed) {
+	          return
+	        }
+	        return
+	      }
+	    }
+
+	    if (client[kRunning] === 0) {
+	      socket[kParser].readMore();
+	      if (socket.destroyed) {
+	        return
+	      }
 	    }
 
 	    if (client[kSize] === 0) {
@@ -9748,6 +9873,7 @@ function requireClientH1 () {
 	  }
 
 	  const socket = client[kSocket];
+	  clearIdleSocketValidation(socket);
 
 	  const abort = (err) => {
 	    if (request.aborted || request.completed) {
@@ -11318,9 +11444,10 @@ function requireClient () {
 	    autoSelectFamilyAttemptTimeout,
 	    // h2
 	    maxConcurrentStreams,
-	    allowH2
+	    allowH2,
+	    webSocket
 	  } = {}) {
-	    super();
+	    super({ webSocket });
 
 	    if (keepAlive !== undefined) {
 	      throw new InvalidArgumentError('unsupported keepAlive, use pipelining=0 instead')
@@ -12027,8 +12154,8 @@ function requirePoolBase () {
 	const kStats = Symbol('stats');
 
 	class PoolBase extends DispatcherBase {
-	  constructor () {
-	    super();
+	  constructor (opts) {
+	    super(opts);
 
 	    this[kQueue] = new FixedQueue();
 	    this[kClients] = [];
@@ -12247,8 +12374,6 @@ function requirePool () {
 	    allowH2,
 	    ...options
 	  } = {}) {
-	    super();
-
 	    if (connections != null && (!Number.isFinite(connections) || connections < 0)) {
 	      throw new InvalidArgumentError('invalid connections')
 	    }
@@ -12272,6 +12397,8 @@ function requirePool () {
 	        ...connect
 	      });
 	    }
+
+	    super(options);
 
 	    this[kInterceptors] = options.interceptors?.Pool && Array.isArray(options.interceptors.Pool)
 	      ? options.interceptors.Pool
@@ -12566,8 +12693,6 @@ function requireAgent () {
 
 	class Agent extends DispatcherBase {
 	  constructor ({ factory = defaultFactory, maxRedirections = 0, connect, ...options } = {}) {
-	    super();
-
 	    if (typeof factory !== 'function') {
 	      throw new InvalidArgumentError('factory must be a function.')
 	    }
@@ -12579,6 +12704,8 @@ function requireAgent () {
 	    if (!Number.isInteger(maxRedirections) || maxRedirections < 0) {
 	      throw new InvalidArgumentError('maxRedirections must be a positive number')
 	    }
+
+	    super(options);
 
 	    if (connect && typeof connect !== 'function') {
 	      connect = { ...connect };
@@ -24229,32 +24356,25 @@ function requireParse$1 () {
 	    // If the attribute-name case-insensitively matches the string
 	    // "SameSite", the user agent MUST process the cookie-av as follows:
 
-	    // 1. Let enforcement be "Default".
-	    let enforcement = 'Default';
-
 	    const attributeValueLowercase = attributeValue.toLowerCase();
-	    // 2. If cookie-av's attribute-value is a case-insensitive match for
-	    //    "None", set enforcement to "None".
-	    if (attributeValueLowercase.includes('none')) {
-	      enforcement = 'None';
-	    }
 
-	    // 3. If cookie-av's attribute-value is a case-insensitive match for
-	    //    "Strict", set enforcement to "Strict".
-	    if (attributeValueLowercase.includes('strict')) {
-	      enforcement = 'Strict';
+	    // 1. If cookie-av's attribute-value is a case-insensitive match for
+	    //    "None", append an attribute to the cookie-attribute-list with an
+	    //    attribute-name of "SameSite" and an attribute-value of "None".
+	    if (attributeValueLowercase === 'none') {
+	      cookieAttributeList.sameSite = 'None';
+	    } else if (attributeValueLowercase === 'strict') {
+	      // 2. If cookie-av's attribute-value is a case-insensitive match for
+	      //    "Strict", append an attribute to the cookie-attribute-list with
+	      //    an attribute-name of "SameSite" and an attribute-value of
+	      //    "Strict".
+	      cookieAttributeList.sameSite = 'Strict';
+	    } else if (attributeValueLowercase === 'lax') {
+	      // 3. If cookie-av's attribute-value is a case-insensitive match for
+	      //    "Lax", append an attribute to the cookie-attribute-list with an
+	      //    attribute-name of "SameSite" and an attribute-value of "Lax".
+	      cookieAttributeList.sameSite = 'Lax';
 	    }
-
-	    // 4. If cookie-av's attribute-value is a case-insensitive match for
-	    //    "Lax", set enforcement to "Lax".
-	    if (attributeValueLowercase.includes('lax')) {
-	      enforcement = 'Lax';
-	    }
-
-	    // 5. Append an attribute to the cookie-attribute-list with an
-	    //    attribute-name of "SameSite" and an attribute-value of
-	    //    enforcement.
-	    cookieAttributeList.sameSite = enforcement;
 	  } else {
 	    cookieAttributeList.unparsed ??= [];
 
@@ -25720,45 +25840,35 @@ function requirePermessageDeflate () {
 	const kBuffer = Symbol('kBuffer');
 	const kLength = Symbol('kLength');
 
-	// Default maximum decompressed message size: 4 MB
-	const kDefaultMaxDecompressedSize = 4 * 1024 * 1024;
-
 	class PerMessageDeflate {
 	  /** @type {import('node:zlib').InflateRaw} */
 	  #inflate
 
 	  #options = {}
 
-	  /** @type {number} */
-	  #maxDecompressedSize
-
-	  /** @type {boolean} */
-	  #aborted = false
-
-	  /** @type {Function|null} */
-	  #currentCallback = null
+	  #maxPayloadSize = 0
 
 	  /**
 	   * @param {Map<string, string>} extensions
-	   * @param {{ maxDecompressedMessageSize?: number }} [options]
 	   */
-	  constructor (extensions, options = {}) {
+	  constructor (extensions, options) {
 	    this.#options.serverNoContextTakeover = extensions.has('server_no_context_takeover');
 	    this.#options.serverMaxWindowBits = extensions.get('server_max_window_bits');
-	    this.#maxDecompressedSize = options.maxDecompressedMessageSize ?? kDefaultMaxDecompressedSize;
+
+	    this.#maxPayloadSize = options.maxPayloadSize;
 	  }
 
+	  /**
+	   * Decompress a compressed payload.
+	   * @param {Buffer} chunk Compressed data
+	   * @param {boolean} fin Final fragment flag
+	   * @param {Function} callback Callback function
+	   */
 	  decompress (chunk, fin, callback) {
 	    // An endpoint uses the following algorithm to decompress a message.
 	    // 1.  Append 4 octets of 0x00 0x00 0xff 0xff to the tail end of the
 	    //     payload of the message.
 	    // 2.  Decompress the resulting data using DEFLATE.
-
-	    if (this.#aborted) {
-	      callback(new MessageSizeExceededError());
-	      return
-	    }
-
 	    if (!this.#inflate) {
 	      let windowBits = Z_DEFAULT_WINDOWBITS;
 
@@ -25781,23 +25891,12 @@ function requirePermessageDeflate () {
 	      this.#inflate[kLength] = 0;
 
 	      this.#inflate.on('data', (data) => {
-	        if (this.#aborted) {
-	          return
-	        }
-
 	        this.#inflate[kLength] += data.length;
 
-	        if (this.#inflate[kLength] > this.#maxDecompressedSize) {
-	          this.#aborted = true;
+	        if (this.#maxPayloadSize > 0 && this.#inflate[kLength] > this.#maxPayloadSize) {
+	          callback(new MessageSizeExceededError());
 	          this.#inflate.removeAllListeners();
-	          this.#inflate.destroy();
 	          this.#inflate = null;
-
-	          if (this.#currentCallback) {
-	            const cb = this.#currentCallback;
-	            this.#currentCallback = null;
-	            cb(new MessageSizeExceededError());
-	          }
 	          return
 	        }
 
@@ -25810,14 +25909,13 @@ function requirePermessageDeflate () {
 	      });
 	    }
 
-	    this.#currentCallback = callback;
 	    this.#inflate.write(chunk);
 	    if (fin) {
 	      this.#inflate.write(tail);
 	    }
 
 	    this.#inflate.flush(() => {
-	      if (this.#aborted || !this.#inflate) {
+	      if (!this.#inflate) {
 	        return
 	      }
 
@@ -25825,7 +25923,6 @@ function requirePermessageDeflate () {
 
 	      this.#inflate[kBuffer].length = 0;
 	      this.#inflate[kLength] = 0;
-	      this.#currentCallback = null;
 
 	      callback(null, full);
 	    });
@@ -25861,6 +25958,12 @@ function requireReceiver () {
 	const { WebsocketFrameSend } = requireFrame();
 	const { closeWebSocketConnection } = requireConnection();
 	const { PerMessageDeflate } = requirePermessageDeflate();
+	const { MessageSizeExceededError } = requireErrors();
+
+	function failWebsocketConnectionWithCode (ws, code, reason) {
+	  closeWebSocketConnection(ws, code, reason, Buffer.byteLength(reason));
+	  failWebsocketConnection(ws, reason);
+	}
 
 	// This code was influenced by ws released under the MIT license.
 	// Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>
@@ -25869,6 +25972,7 @@ function requireReceiver () {
 
 	class ByteParser extends Writable {
 	  #buffers = []
+	  #fragmentsBytes = 0
 	  #byteOffset = 0
 	  #loop = false
 
@@ -25880,20 +25984,24 @@ function requireReceiver () {
 	  /** @type {Map<string, PerMessageDeflate>} */
 	  #extensions
 
-	  /** @type {{ maxDecompressedMessageSize?: number }} */
-	  #options
+	  /** @type {number} */
+	  #maxFragments
+
+	  /** @type {number} */
+	  #maxPayloadSize
 
 	  /**
 	   * @param {import('./websocket').WebSocket} ws
 	   * @param {Map<string, string>|null} extensions
-	   * @param {{ maxDecompressedMessageSize?: number }} [options]
+	   * @param {{ maxFragments?: number, maxPayloadSize?: number }} [options]
 	   */
 	  constructor (ws, extensions, options = {}) {
 	    super();
 
 	    this.ws = ws;
 	    this.#extensions = extensions == null ? new Map() : extensions;
-	    this.#options = options;
+	    this.#maxFragments = options.maxFragments ?? 0;
+	    this.#maxPayloadSize = options.maxPayloadSize ?? 0;
 
 	    if (this.#extensions.has('permessage-deflate')) {
 	      this.#extensions.set('permessage-deflate', new PerMessageDeflate(extensions, options));
@@ -25910,6 +26018,19 @@ function requireReceiver () {
 	    this.#loop = true;
 
 	    this.run(callback);
+	  }
+
+	  #validatePayloadLength () {
+	    if (
+	      this.#maxPayloadSize > 0 &&
+	      !isControlFrame(this.#info.opcode) &&
+	      this.#info.payloadLength + this.#fragmentsBytes > this.#maxPayloadSize
+	    ) {
+	      failWebsocketConnectionWithCode(this.ws, 1009, 'Payload size exceeds maximum allowed size');
+	      return false
+	    }
+
+	    return true
 	  }
 
 	  /**
@@ -26000,6 +26121,10 @@ function requireReceiver () {
 	        if (payloadLength <= 125) {
 	          this.#info.payloadLength = payloadLength;
 	          this.#state = parserStates.READ_DATA;
+
+	          if (!this.#validatePayloadLength()) {
+	            return
+	          }
 	        } else if (payloadLength === 126) {
 	          this.#state = parserStates.PAYLOADLENGTH_16;
 	        } else if (payloadLength === 127) {
@@ -26024,6 +26149,10 @@ function requireReceiver () {
 
 	        this.#info.payloadLength = buffer.readUInt16BE(0);
 	        this.#state = parserStates.READ_DATA;
+
+	        if (!this.#validatePayloadLength()) {
+	          return
+	        }
 	      } else if (this.#state === parserStates.PAYLOADLENGTH_64) {
 	        if (this.#byteOffset < 8) {
 	          return callback()
@@ -26046,6 +26175,10 @@ function requireReceiver () {
 
 	        this.#info.payloadLength = lower;
 	        this.#state = parserStates.READ_DATA;
+
+	        if (!this.#validatePayloadLength()) {
+	          return
+	        }
 	      } else if (this.#state === parserStates.READ_DATA) {
 	        if (this.#byteOffset < this.#info.payloadLength) {
 	          return callback()
@@ -26058,42 +26191,58 @@ function requireReceiver () {
 	          this.#state = parserStates.INFO;
 	        } else {
 	          if (!this.#info.compressed) {
-	            this.#fragments.push(body);
+	            if (!this.writeFragments(body)) {
+	              return
+	            }
+
+	            if (this.#maxPayloadSize > 0 && this.#fragmentsBytes > this.#maxPayloadSize) {
+	              failWebsocketConnectionWithCode(this.ws, 1009, new MessageSizeExceededError().message);
+	              return
+	            }
 
 	            // If the frame is not fragmented, a message has been received.
 	            // If the frame is fragmented, it will terminate with a fin bit set
 	            // and an opcode of 0 (continuation), therefore we handle that when
 	            // parsing continuation frames, not here.
 	            if (!this.#info.fragmented && this.#info.fin) {
-	              const fullMessage = Buffer.concat(this.#fragments);
-	              websocketMessageReceived(this.ws, this.#info.binaryType, fullMessage);
-	              this.#fragments.length = 0;
+	              websocketMessageReceived(this.ws, this.#info.binaryType, this.consumeFragments());
 	            }
 
 	            this.#state = parserStates.INFO;
 	          } else {
-	            this.#extensions.get('permessage-deflate').decompress(body, this.#info.fin, (error, data) => {
-	              if (error) {
-	                failWebsocketConnection(this.ws, error.message);
-	                return
-	              }
+	            this.#extensions.get('permessage-deflate').decompress(
+	              body,
+	              this.#info.fin,
+	              (error, data) => {
+	                if (error) {
+	                  const code = error instanceof MessageSizeExceededError ? 1009 : 1007;
+	                  failWebsocketConnectionWithCode(this.ws, code, error.message);
+	                  return
+	                }
 
-	              this.#fragments.push(data);
+	                if (!this.writeFragments(data)) {
+	                  return
+	                }
 
-	              if (!this.#info.fin) {
-	                this.#state = parserStates.INFO;
+	                if (this.#maxPayloadSize > 0 && this.#fragmentsBytes > this.#maxPayloadSize) {
+	                  failWebsocketConnectionWithCode(this.ws, 1009, new MessageSizeExceededError().message);
+	                  return
+	                }
+
+	                if (!this.#info.fin) {
+	                  this.#state = parserStates.INFO;
+	                  this.#loop = true;
+	                  this.run(callback);
+	                  return
+	                }
+
+	                websocketMessageReceived(this.ws, this.#info.binaryType, this.consumeFragments());
+
 	                this.#loop = true;
+	                this.#state = parserStates.INFO;
 	                this.run(callback);
-	                return
 	              }
-
-	              websocketMessageReceived(this.ws, this.#info.binaryType, Buffer.concat(this.#fragments));
-
-	              this.#loop = true;
-	              this.#state = parserStates.INFO;
-	              this.#fragments.length = 0;
-	              this.run(callback);
-	            });
+	            );
 
 	            this.#loop = false;
 	            break
@@ -26143,6 +26292,35 @@ function requireReceiver () {
 	    this.#byteOffset -= n;
 
 	    return buffer
+	  }
+
+	  writeFragments (fragment) {
+	    if (
+	      this.#maxFragments > 0 &&
+	      this.#fragments.length === this.#maxFragments
+	    ) {
+	      failWebsocketConnectionWithCode(this.ws, 1008, 'Too many message fragments');
+	      return false
+	    }
+
+	    this.#fragmentsBytes += fragment.length;
+	    this.#fragments.push(fragment);
+	    return true
+	  }
+
+	  consumeFragments () {
+	    const fragments = this.#fragments;
+
+	    if (fragments.length === 1) {
+	      this.#fragmentsBytes = 0;
+	      return fragments.shift()
+	    }
+
+	    const output = Buffer.concat(fragments, this.#fragmentsBytes);
+	    this.#fragments = [];
+	    this.#fragmentsBytes = 0;
+
+	    return output
 	  }
 
 	  parseCloseBody (data) {
@@ -26439,9 +26617,6 @@ function requireWebsocket () {
 	  /** @type {SendQueue} */
 	  #sendQueue
 
-	  /** @type {{ maxDecompressedMessageSize?: number }} */
-	  #options
-
 	  /**
 	   * @param {string} url
 	   * @param {string|string[]} protocols
@@ -26514,11 +26689,6 @@ function requireWebsocket () {
 
 	    // 10. Set this's url to urlRecord.
 	    this[kWebSocketURL] = new URL(urlRecord.href);
-
-	    // Store options for later use (e.g., maxDecompressedMessageSize)
-	    this.#options = {
-	      maxDecompressedMessageSize: options.maxDecompressedMessageSize
-	    };
 
 	    // 11. Let client be this's relevant settings object.
 	    const client = environmentSettingsObject.settingsObject;
@@ -26838,7 +27008,14 @@ function requireWebsocket () {
 	    // once this happens, the connection is open
 	    this[kResponse] = response;
 
-	    const parser = new ByteParser(this, parsedExtensions, this.#options);
+	    const webSocketOptions = this[kController]?.dispatcher?.webSocketOptions;
+	    const maxFragments = webSocketOptions?.maxFragments;
+	    const maxPayloadSize = webSocketOptions?.maxPayloadSize;
+
+	    const parser = new ByteParser(this, parsedExtensions, {
+	      maxFragments,
+	      maxPayloadSize
+	    });
 	    parser.on('drain', onParserDrain);
 	    parser.on('error', onParserError.bind(this));
 
@@ -26941,19 +27118,6 @@ function requireWebsocket () {
 	  {
 	    key: 'headers',
 	    converter: webidl.nullableConverter(webidl.converters.HeadersInit)
-	  },
-	  {
-	    key: 'maxDecompressedMessageSize',
-	    converter: webidl.nullableConverter((V) => {
-	      V = webidl.converters['unsigned long long'](V);
-	      if (V <= 0) {
-	        throw webidl.errors.exception({
-	          header: 'WebSocket constructor',
-	          message: 'maxDecompressedMessageSize must be greater than 0'
-	        })
-	      }
-	      return V
-	    })
 	  }
 	]);
 
@@ -31887,9 +32051,8 @@ function requireSideChannelList () {
 				}
 			},
 			'delete': function (key) {
-				var root = $o && $o.next;
 				var deletedNode = listDelete($o, key);
-				if (deletedNode && root && root === deletedNode) {
+				if (deletedNode && $o && !$o.next) {
 					$o = void undefined;
 				}
 				return !!deletedNode;
@@ -31911,7 +32074,6 @@ function requireSideChannelList () {
 				listSet(/** @type {NonNullable<typeof $o>} */ ($o), key, value);
 			}
 		};
-		// @ts-expect-error TODO: figure out why this is erroring
 		return channel;
 	};
 	return sideChannelList;
@@ -33141,7 +33303,10 @@ function requireSideChannel () {
 		var channel = {
 			assert: function (key) {
 				if (!channel.has(key)) {
-					throw new $TypeError('Side channel does not contain ' + inspect(key));
+					var keyDesc = key && Object(key) === key
+						? 'the given object key'
+						: inspect(key);
+					throw new $TypeError('Side channel does not contain ' + keyDesc);
 				}
 			},
 			'delete': function (key) {
@@ -33161,7 +33326,7 @@ function requireSideChannel () {
 				$channelData.set(key, value);
 			}
 		};
-		// @ts-expect-error TODO: figure out why this is erroring
+
 		return channel;
 	};
 	return sideChannel;
@@ -33207,6 +33372,7 @@ function requireUtils () {
 
 	var formats = /*@__PURE__*/ requireFormats();
 	var getSideChannel = requireSideChannel();
+	var defineProperty = /*@__PURE__*/ requireEsDefineProperty();
 
 	var has = Object.prototype.hasOwnProperty;
 	var isArray = Array.isArray;
@@ -33271,6 +33437,19 @@ function requireUtils () {
 	    return obj;
 	};
 
+	var setProperty = function setProperty(obj, key, value) {
+	    if (key === '__proto__' && defineProperty) {
+	        defineProperty(obj, key, {
+	            configurable: true,
+	            enumerable: true,
+	            value: value,
+	            writable: true
+	        });
+	    } else {
+	        obj[key] = value;
+	    }
+	};
+
 	var merge = function merge(target, source, options) {
 	    /* eslint no-param-reassign: 0 */
 	    if (!source) {
@@ -33280,7 +33459,10 @@ function requireUtils () {
 	    if (typeof source !== 'object' && typeof source !== 'function') {
 	        if (isArray(target)) {
 	            var nextIndex = target.length;
-	            if (options && typeof options.arrayLimit === 'number' && nextIndex > options.arrayLimit) {
+	            if (options && typeof options.arrayLimit === 'number' && nextIndex >= options.arrayLimit) {
+	                if (options.throwOnLimitExceeded) {
+	                    throw new RangeError('Array limit exceeded. Only ' + options.arrayLimit + ' element' + (options.arrayLimit === 1 ? '' : 's') + ' allowed in an array.');
+	                }
 	                return markOverflow(arrayToObject(target.concat(source), options), nextIndex);
 	            }
 	            target[nextIndex] = source;
@@ -33320,6 +33502,9 @@ function requireUtils () {
 	        }
 	        var combined = [target].concat(source);
 	        if (options && typeof options.arrayLimit === 'number' && combined.length > options.arrayLimit) {
+	            if (options.throwOnLimitExceeded) {
+	                throw new RangeError('Array limit exceeded. Only ' + options.arrayLimit + ' element' + (options.arrayLimit === 1 ? '' : 's') + ' allowed in an array.');
+	            }
 	            return markOverflow(arrayToObject(combined, options), combined.length - 1);
 	        }
 	        return combined;
@@ -33343,6 +33528,12 @@ function requireUtils () {
 	                target[i] = item;
 	            }
 	        });
+	        if (options && typeof options.arrayLimit === 'number' && target.length > options.arrayLimit) {
+	            if (options.throwOnLimitExceeded) {
+	                throw new RangeError('Array limit exceeded. Only ' + options.arrayLimit + ' element' + (options.arrayLimit === 1 ? '' : 's') + ' allowed in an array.');
+	            }
+	            return markOverflow(arrayToObject(target, options), target.length - 1);
+	        }
 	        return target;
 	    }
 
@@ -33350,9 +33541,9 @@ function requireUtils () {
 	        var value = source[key];
 
 	        if (has.call(acc, key)) {
-	            acc[key] = merge(acc[key], value, options);
+	            setProperty(acc, key, merge(acc[key], value, options));
 	        } else {
-	            acc[key] = value;
+	            setProperty(acc, key, value);
 	        }
 
 	        if (isOverflow(source) && !isOverflow(acc)) {
@@ -33371,7 +33562,7 @@ function requireUtils () {
 
 	var assign = function assignSingleSource(target, source) {
 	    return Object.keys(source).reduce(function (acc, key) {
-	        acc[key] = source[key];
+	        setProperty(acc, key, source[key]);
 	        return acc;
 	    }, target);
 	};
@@ -33417,6 +33608,13 @@ function requireUtils () {
 	    var out = '';
 	    for (var j = 0; j < string.length; j += limit) {
 	        var segment = string.length >= limit ? string.slice(j, j + limit) : string;
+	        if (j + limit < string.length) {
+	            var last = segment.charCodeAt(segment.length - 1);
+	            if (last >= 0xD800 && last <= 0xDBFF) {
+	                segment = segment.slice(0, -1);
+	                j -= 1;
+	            }
+	        }
 	        var arr = [];
 
 	        for (var i = 0; i < segment.length; ++i) {
@@ -33470,7 +33668,7 @@ function requireUtils () {
 
 	var compact = function compact(value) {
 	    var queue = [{ obj: { o: value }, prop: 'o' }];
-	    var refs = [];
+	    var refs = getSideChannel();
 
 	    for (var i = 0; i < queue.length; ++i) {
 	        var item = queue[i];
@@ -33480,9 +33678,9 @@ function requireUtils () {
 	        for (var j = 0; j < keys.length; ++j) {
 	            var key = keys[j];
 	            var val = obj[key];
-	            if (typeof val === 'object' && val !== null && refs.indexOf(val) === -1) {
+	            if (typeof val === 'object' && val !== null && !refs.has(val)) {
 	                queue[queue.length] = { obj: obj, prop: key };
-	                refs[refs.length] = val;
+	                refs.set(val, true);
 	            }
 	        }
 	    }
@@ -33504,9 +33702,12 @@ function requireUtils () {
 	    return !!(obj.constructor && obj.constructor.isBuffer && obj.constructor.isBuffer(obj));
 	};
 
-	var combine = function combine(a, b, arrayLimit, plainObjects) {
+	var combine = function combine(a, b, arrayLimit, plainObjects, throwOnLimitExceeded) {
 	    // If 'a' is already an overflow object, add to it
 	    if (isOverflow(a)) {
+	        if (throwOnLimitExceeded) {
+	            throw new RangeError('Array limit exceeded. Only ' + arrayLimit + ' element' + (arrayLimit === 1 ? '' : 's') + ' allowed in an array.');
+	        }
 	        var newIndex = getMaxIndex(a) + 1;
 	        a[newIndex] = b;
 	        setMaxIndex(a, newIndex);
@@ -33515,6 +33716,9 @@ function requireUtils () {
 
 	    var result = [].concat(a, b);
 	    if (result.length > arrayLimit) {
+	        if (throwOnLimitExceeded) {
+	            throw new RangeError('Array limit exceeded. Only ' + arrayLimit + ' element' + (arrayLimit === 1 ? '' : 's') + ' allowed in an array.');
+	        }
 	        return markOverflow(arrayToObject(result, { plainObjects: plainObjects }), result.length - 1);
 	    }
 	    return result;
@@ -33673,7 +33877,7 @@ function requireStringify () {
 
 	    if (obj === null) {
 	        if (strictNullHandling) {
-	            return encoder && !encodeValuesOnly ? encoder(prefix, defaults.encoder, charset, 'key', format) : prefix;
+	            return formatter(encoder && !encodeValuesOnly ? encoder(prefix, defaults.encoder, charset, 'key', format) : prefix);
 	        }
 
 	        obj = '';
@@ -33697,7 +33901,9 @@ function requireStringify () {
 	    if (generateArrayPrefix === 'comma' && isArray(obj)) {
 	        // we need to join elements in
 	        if (encodeValuesOnly && encoder) {
-	            obj = utils.maybeMap(obj, encoder);
+	            obj = utils.maybeMap(obj, function (v) {
+	                return v == null ? v : encoder(v);
+	            });
 	        }
 	        objKeys = [{ value: obj.length > 0 ? obj.join(',') || null : void undefined }];
 	    } else if (isArray(filter)) {
@@ -33867,6 +34073,11 @@ function requireStringify () {
 	    var sideChannel = getSideChannel();
 	    for (var i = 0; i < objKeys.length; ++i) {
 	        var key = objKeys[i];
+
+	        if (typeof key === 'undefined' || key === null) {
+	            continue;
+	        }
+
 	        var value = obj[key];
 
 	        if (options.skipNulls && value === null) {
@@ -33900,10 +34111,10 @@ function requireStringify () {
 	    if (options.charsetSentinel) {
 	        if (options.charset === 'iso-8859-1') {
 	            // encodeURIComponent('&#10003;'), the "numeric entity" representation of a checkmark
-	            prefix += 'utf8=%26%2310003%3B&';
+	            prefix += 'utf8=%26%2310003%3B' + options.delimiter;
 	        } else {
 	            // encodeURIComponent('✓')
-	            prefix += 'utf8=%E2%9C%93&';
+	            prefix += 'utf8=%E2%9C%93' + options.delimiter;
 	        }
 	    }
 
@@ -33955,8 +34166,19 @@ function requireParse () {
 	    });
 	};
 
-	var parseArrayValue = function (val, options, currentArrayLength) {
+	var parseArrayValue = function (val, options, currentArrayLength, isFlatArrayValue) {
 	    if (val && typeof val === 'string' && options.comma && val.indexOf(',') > -1) {
+	        if (isFlatArrayValue && options.throwOnLimitExceeded) {
+	            var commaCount = 0;
+	            var commaIndex = val.indexOf(',');
+	            while (commaIndex > -1) {
+	                commaCount += 1;
+	                if (commaCount >= options.arrayLimit) {
+	                    throw new RangeError('Array limit exceeded. Only ' + options.arrayLimit + ' element' + (options.arrayLimit === 1 ? '' : 's') + ' allowed in an array.');
+	                }
+	                commaIndex = val.indexOf(',', commaIndex + 1);
+	            }
+	        }
 	        return val.split(',');
 	    }
 
@@ -33986,10 +34208,10 @@ function requireParse () {
 	    var limit = options.parameterLimit === Infinity ? void undefined : options.parameterLimit;
 	    var parts = cleanStr.split(
 	        options.delimiter,
-	        options.throwOnLimitExceeded ? limit + 1 : limit
+	        options.throwOnLimitExceeded && typeof limit !== 'undefined' ? limit + 1 : limit
 	    );
 
-	    if (options.throwOnLimitExceeded && parts.length > limit) {
+	    if (options.throwOnLimitExceeded && typeof limit !== 'undefined' && parts.length > limit) {
 	        throw new RangeError('Parameter limit exceeded. Only ' + limit + ' parameter' + (limit === 1 ? '' : 's') + ' allowed.');
 	    }
 
@@ -34033,7 +34255,8 @@ function requireParse () {
 	                    parseArrayValue(
 	                        part.slice(pos + 1),
 	                        options,
-	                        isArray(obj[key]) ? obj[key].length : 0
+	                        isArray(obj[key]) ? obj[key].length : 0,
+	                        part.indexOf('[]=') === -1
 	                    ),
 	                    function (encodedVal) {
 	                        return options.decoder(encodedVal, defaults.decoder, charset, 'value');
@@ -34051,10 +34274,7 @@ function requireParse () {
 	        }
 
 	        if (options.comma && isArray(val) && val.length > options.arrayLimit) {
-	            if (options.throwOnLimitExceeded) {
-	                throw new RangeError('Array limit exceeded. Only ' + options.arrayLimit + ' element' + (options.arrayLimit === 1 ? '' : 's') + ' allowed in an array.');
-	            }
-	            val = utils.combine([], val, options.arrayLimit, options.plainObjects);
+	            val = utils.combine([], val, options.arrayLimit, options.plainObjects, options.throwOnLimitExceeded);
 	        }
 
 	        if (key !== null) {
@@ -34064,7 +34284,8 @@ function requireParse () {
 	                    obj[key],
 	                    val,
 	                    options.arrayLimit,
-	                    options.plainObjects
+	                    options.plainObjects,
+	                    options.throwOnLimitExceeded
 	                );
 	            } else if (!existing || options.duplicates === 'last') {
 	                obj[key] = val;
@@ -34099,7 +34320,8 @@ function requireParse () {
 	                        [],
 	                        leaf,
 	                        options.arrayLimit,
-	                        options.plainObjects
+	                        options.plainObjects,
+	                        options.throwOnLimitExceeded
 	                    );
 	            }
 	        } else {
@@ -34133,9 +34355,12 @@ function requireParse () {
 	    return leaf;
 	};
 
-	var splitKeyIntoSegments = function splitKeyIntoSegments(givenKey, options) {
-	    var key = options.allowDots ? givenKey.replace(/\.([^.[]+)/g, '[$1]') : givenKey;
+	// Split a key like "a[b][c[]]" into ['a', '[b]', '[c[]]'] while preserving
+	// qs parse semantics for depth/prototype guards.
+	var splitKeyIntoSegments = function splitKeyIntoSegments(originalKey, options) {
+	    var key = options.allowDots ? originalKey.replace(/\.([^.[]+)/g, '[$1]') : originalKey;
 
+	    // depth <= 0 keeps the whole key as one segment
 	    if (options.depth <= 0) {
 	        if (!options.plainObjects && has.call(Object.prototype, key)) {
 	            if (!options.allowPrototypes) {
@@ -34146,14 +34371,11 @@ function requireParse () {
 	        return [key];
 	    }
 
-	    var brackets = /(\[[^[\]]*])/;
-	    var child = /(\[[^[\]]*])/g;
+	    var segments = [];
 
-	    var segment = brackets.exec(key);
-	    var parent = segment ? key.slice(0, segment.index) : key;
-
-	    var keys = [];
-
+	    // parent before the first '[' (may be empty if key starts with '[')
+	    var first = key.indexOf('[');
+	    var parent = first >= 0 ? key.slice(0, first) : key;
 	    if (parent) {
 	        if (!options.plainObjects && has.call(Object.prototype, parent)) {
 	            if (!options.allowPrototypes) {
@@ -34161,32 +34383,62 @@ function requireParse () {
 	            }
 	        }
 
-	        keys[keys.length] = parent;
+	        segments[segments.length] = parent;
 	    }
 
-	    var i = 0;
-	    while ((segment = child.exec(key)) !== null && i < options.depth) {
-	        i += 1;
+	    var n = key.length;
+	    var open = first;
+	    var collected = 0;
 
-	        var segmentContent = segment[1].slice(1, -1);
-	        if (!options.plainObjects && has.call(Object.prototype, segmentContent)) {
-	            if (!options.allowPrototypes) {
-	                return;
+	    while (open >= 0 && collected < options.depth) {
+	        var level = 1;
+	        var i = open + 1;
+	        var close = -1;
+
+	        // balance nested '[' and ']' inside this bracket group using a nesting level counter
+	        while (i < n && close < 0) {
+	            var cu = key.charCodeAt(i);
+	            if (cu === 0x5B) { // '['
+	                level += 1;
+	            } else if (cu === 0x5D) { // ']'
+	                level -= 1;
+	                if (level === 0) {
+	                    close = i; // found matching close; loop will exit by condition
+	                }
 	            }
+	            i += 1;
 	        }
 
-	        keys[keys.length] = segment[1];
+	        if (close < 0) {
+	            // Unterminated group: wrap the raw remainder in one bracket pair so it stays
+	            // a single literal segment (e.g. "[[]b" -> "[[]b]"); we do not infer missing ']'.
+	            segments[segments.length] = '[' + key.slice(open) + ']';
+	            return segments;
+	        }
+
+	        var seg = key.slice(open, close + 1);
+	        // prototype guard for the content of this group
+	        var content = seg.slice(1, -1);
+	        if (!options.plainObjects && has.call(Object.prototype, content) && !options.allowPrototypes) {
+	            return;
+	        }
+
+	        segments[segments.length] = seg;
+	        collected += 1;
+
+	        // find the next '[' after this balanced group
+	        open = key.indexOf('[', close + 1);
 	    }
 
-	    if (segment) {
+	    if (open >= 0) {
 	        if (options.strictDepth === true) {
 	            throw new RangeError('Input depth exceeded depth option of ' + options.depth + ' and strictDepth is true');
 	        }
 
-	        keys[keys.length] = '[' + key.slice(segment.index) + ']';
+	        segments[segments.length] = '[' + key.slice(open) + ']';
 	    }
 
-	    return keys;
+	    return segments;
 	};
 
 	var parseKeys = function parseQueryStringKeys(givenKey, val, options, valuesParsed) {
@@ -34571,6 +34823,105 @@ async function updateSecret(apiConfig, secret) {
     }
 }
 
+async function getTemplate(apiConfig, id) {
+    try {
+        const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/template/${id}`, {
+            method: 'GET',
+            headers: {
+                Authorization: `APIKey ${apiConfig.apiKey}`
+            }
+        });
+        if (!response.ok) {
+            throw new Error(response.statusText);
+        }
+        const template = (await response.json());
+        return {
+            ...template,
+            id: Number.parseInt(id.toString(), 10) // Ensure ID is included as a number
+        };
+    }
+    catch (error) {
+        throw new Error(`Error fetching template: ${error instanceof Error ? error.message : error}`);
+    }
+}
+async function getTemplates(apiConfig, query = {}) {
+    try {
+        const queryString = qs.stringify(query, {
+            skipNulls: true,
+            addQueryPrefix: true
+        });
+        const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/template${queryString}`, {
+            method: 'GET',
+            headers: {
+                Authorization: `APIKey ${apiConfig.apiKey}`
+            }
+        });
+        if (!response.ok) {
+            throw new Error(response.statusText);
+        }
+        const jsonResponse = (await response.json());
+        return jsonResponse.templates ?? [];
+    }
+    catch (error) {
+        throw new Error(`Error fetching templates: ${error instanceof Error ? error.message : error}`);
+    }
+}
+// Template list API has no name filter — scan owned templates (max 200)
+async function getTemplateByName(apiConfig, name) {
+    const templates = await getTemplates(apiConfig, {
+        only_mine: true,
+        limit: 200
+    });
+    const match = templates.find((t) => t.name === name);
+    if (!match) {
+        throw new Error(`Template with name "${name}" not found`);
+    }
+    return getTemplate(apiConfig, match.id);
+}
+async function createTemplate(apiConfig, template) {
+    try {
+        const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/template`, {
+            method: 'POST',
+            headers: {
+                Authorization: `APIKey ${apiConfig.apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(template)
+        });
+        if (!response.ok) {
+            throw new Error(response.statusText);
+        }
+        return response.json();
+    }
+    catch (error) {
+        throw new Error(`Error creating template: ${error instanceof Error ? error.message : error}`);
+    }
+}
+async function updateTemplate(apiConfig, template) {
+    try {
+        const { id, ...body } = template;
+        const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/template/${id}`, {
+            method: 'PUT',
+            headers: {
+                Authorization: `APIKey ${apiConfig.apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) {
+            throw new Error(response.statusText);
+        }
+        const updated = (await response.json());
+        return {
+            ...updated,
+            id
+        };
+    }
+    catch (error) {
+        throw new Error(`Error updating template: ${error instanceof Error ? error.message : error}`);
+    }
+}
+
 /* istanbul ignore file */
 /**
  * FastEdge API client providing access to all API endpoints
@@ -34665,6 +35016,38 @@ class FastEdgeClient {
              * @param resource - Secret update parameters
              */
             update: (resource) => updateSecret(this.apiConfig, resource)
+        };
+    }
+    /**
+     * Access template-related API endpoints
+     */
+    get templates() {
+        return {
+            /**
+             * Get a list of templates
+             * @param params - Query parameters for filtering and pagination
+             */
+            getAll: (params = {}) => getTemplates(this.apiConfig, params),
+            /**
+             * Get a specific template by ID
+             * @param id - Template ID
+             */
+            get: (id) => getTemplate(this.apiConfig, id),
+            /**
+             * Get a specific template by name (scans owned templates)
+             * @param name - Template name
+             */
+            getByName: (name) => getTemplateByName(this.apiConfig, name),
+            /**
+             * Create a new template
+             * @param resource - Template creation parameters
+             */
+            create: (resource) => createTemplate(this.apiConfig, resource),
+            /**
+             * Update an existing template
+             * @param resource - Template update parameters
+             */
+            update: (resource) => updateTemplate(this.apiConfig, resource)
         };
     }
 }

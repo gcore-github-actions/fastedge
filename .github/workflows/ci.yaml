@@ -89,3 +89,28 @@ jobs:
         run: |
           echo "app_id: ${{ steps.test-deploy-app-action.outputs.app_id }}"
           echo "binary_id: ${{ steps.test-deploy-app-action.outputs.binary_id }}"
+
+  test-template-action:
+    name: GitHub Actions Deploy-Template Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v6
+
+      - name: Test Local Action
+        id: test-deploy-template-action
+        uses: ./deploy-template
+        with:
+          api_key: ${{ secrets.GCORE_API_KEY }}
+          api_url: ${{ vars.GCORE_API_URL }}
+          template_name: 'github-local-template'
+          wasm_file: 'public/test.wasm'
+          short_descr: 'Test template for GitHub Actions CI test'
+
+      - name: Print Output
+        id: output
+        run: |
+          echo "template_id: ${{ steps.test-deploy-template-action.outputs.template_id }}"
+          echo "binary_id: ${{ steps.test-deploy-template-action.outputs.binary_id }}"

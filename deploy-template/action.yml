@@ -1,0 +1,58 @@
+name: FastEdge Deploy Template Action
+description:
+  This action deploys a FastEdge template from a specified WASM binary.
+author: Gcore - FastEdge Team
+
+branding:
+  icon: upload-cloud
+  color: orange
+
+inputs:
+  # Required inputs for the action.
+  api_key:
+    description: Your FastEdge API key.
+    required: true
+  wasm_file:
+    description: Path to the WASM binary file to deploy.
+    required: true
+  template_name:
+    description: Unique name of the template.
+    required: true
+
+  # Optional inputs for the action.
+  api_url:
+    description: The base URL of the FastEdge API.
+    required: false
+    default: 'https://api.gcore.com'
+  template_id:
+    description:
+      Unique identifier of the template. Provide to update by ID (allows
+      renaming).
+    required: false
+    default: 0
+  short_descr:
+    description: Brief one-line description displayed in template listings.
+    required: false
+    default: ''
+  long_descr:
+    description: Detailed markdown description of the template.
+    required: false
+    default: ''
+  params:
+    description: >
+      JSON array of template parameter definitions. Each parameter describes an
+      env var or secret a user must configure when creating an app from this
+      template. See context/api/fastedge-templates.md for the full schema and
+      metadata encoding rules.
+    required: false
+    default: '[]'
+
+outputs:
+  binary_id:
+    description: The ID of the uploaded binary.
+  template_id:
+    description: The ID of the created or updated template.
+
+runs:
+  using: node20
+  main: ../dist/deploy-template/index.js
