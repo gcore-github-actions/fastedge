@@ -55,6 +55,8 @@ jest.unstable_mockModule('../../src/api-utils/index.js', () => ({
 }))
 
 const { run } = await import('../../src/deploy-template/main.js')
+const { buildUserAgent, FastEdgeClient } =
+  await import('../../src/api-utils/index.js')
 
 const mockApiKey = 'test-api-key'
 const mockApiUrl = 'https://api.example.com'
@@ -92,6 +94,16 @@ describe('run', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockGetInput.mockImplementation((name: string) => baseInputs[name] ?? '')
+  })
+
+  it('passes the deploy-template user agent to the client', async () => {
+    await run()
+    expect(buildUserAgent).toHaveBeenCalledWith('deploy-template')
+    expect(FastEdgeClient).toHaveBeenCalledWith(
+      mockApiKey,
+      mockApiUrl,
+      'test-ua'
+    )
   })
 
   describe('create path (template not found by name)', () => {

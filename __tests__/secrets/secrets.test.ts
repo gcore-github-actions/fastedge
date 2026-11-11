@@ -23,7 +23,8 @@ const mockApiUrl = 'https://api.example.com'
 const mockApiKey = 'test-api-key'
 const mockApiConfig = {
   apiUrl: mockApiUrl,
-  apiKey: mockApiKey
+  apiKey: mockApiKey,
+  userAgent: 'test-ua'
 }
 
 describe('Secrets functions', () => {
@@ -64,7 +65,8 @@ describe('Secrets functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -158,7 +160,8 @@ describe('Secrets functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -170,7 +173,8 @@ describe('Secrets functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -200,7 +204,8 @@ describe('Secrets functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -311,7 +316,8 @@ describe('Secrets functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -347,7 +353,8 @@ describe('Secrets functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -461,7 +468,8 @@ describe('Secrets functions', () => {
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           }),
           body: JSON.stringify(mockSecretResource)
         })
@@ -541,7 +549,8 @@ describe('Secrets functions', () => {
           method: 'PATCH',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           }),
           body: JSON.stringify(mockUpdateResource)
         })

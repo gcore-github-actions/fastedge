@@ -61,6 +61,8 @@ jest.unstable_mockModule('../../src/api-utils/index.js', () => ({
 
 // Import the main function after mocking
 const { run } = await import('../../src/deploy-app/main.js')
+const { buildUserAgent, FastEdgeClient } =
+  await import('../../src/api-utils/index.js')
 
 describe('main.ts', () => {
   const mockApiKey = 'test-api-key'
@@ -86,6 +88,16 @@ describe('main.ts', () => {
           }
           return inputs[name] || ''
         })
+      })
+
+      it('passes the deploy-app user agent to the client', async () => {
+        await run()
+        expect(buildUserAgent).toHaveBeenCalledWith('deploy-app')
+        expect(FastEdgeClient).toHaveBeenCalledWith(
+          mockApiKey,
+          mockApiUrl,
+          'test-ua'
+        )
       })
 
       it('updates existing app by ID when changes are detected', async () => {
