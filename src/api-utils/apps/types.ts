@@ -65,12 +65,7 @@ type GetAppResponseWithBinary = Omit<GetAppResponse, 'binary'> & {
 **/
 
 type AppsOrderingFields =
-  | 'binary'
-  | 'id'
-  | 'name'
-  | 'plan'
-  | 'status'
-  | 'template'
+  'binary' | 'id' | 'name' | 'plan' | 'status' | 'template'
 
 interface GetAppsQueryParams
   extends PaginationParams, OrderingParams<AppsOrderingFields> {
@@ -113,8 +108,7 @@ type CreateAppFromTemplateResource = CreateAppBase &
   Pick<AppResource, 'template'>
 
 type CreateAppResource =
-  | CreateAppFromBinaryResource
-  | CreateAppFromTemplateResource
+  CreateAppFromBinaryResource | CreateAppFromTemplateResource
 
 type CreateAppResponse = Pick<
   AppResource,
