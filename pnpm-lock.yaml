@@ -74,7 +74,7 @@ importers:
         version: 29.17.0(@typescript-eslint/eslint-plugin@8.72.2(@typescript-eslint/parser@8.72.2(eslint@9.39.5)(typescript@5.9.3))(eslint@9.39.5)(typescript@5.9.3))(eslint@9.39.5)(jest@30.5.2(@types/node@25.9.9))(typescript@5.9.3)
       eslint-plugin-prettier:
         specifier: ^5.5.3
-        version: 5.5.7(eslint-config-prettier@10.1.8(eslint@9.39.5))(eslint@9.39.5)(prettier@3.9.10)
+        version: 5.5.7(eslint-config-prettier@10.1.8(eslint@9.39.5))(eslint@9.39.5)(prettier@3.8.5)
       globals:
         specifier: ^17.0.0
         version: 17.14.0
@@ -88,8 +88,8 @@ importers:
         specifier: ^9.0.2
         version: 9.0.4
       prettier:
-        specifier: ^3.6.2
-        version: 3.9.10
+        specifier: ~3.8.4
+        version: 3.8.5
       prettier-eslint:
         specifier: ^17.1.2
         version: 17.1.2(typescript@5.9.3)
@@ -3076,8 +3076,8 @@ packages:
     resolution: {integrity: sha512-SxToR7P8Y2lWmv/kTzVLC1t/GDI2WGjMwNhLLE9qtH8Q13C+aEmuRlzDst4Up4s0Wc8sF2M+J57iB3cMLqftfg==}
     engines: {node: '>=6.0.0'}
 
-  prettier@3.9.10:
-    resolution: {integrity: sha512-skGHTH1Yb9QvaTC4hWnRTzEYtCpApF0UMBPz+t/0ZPzP8ihefo/btKd+QA7pUE0fEwA1SbS/NmhyEcstdXOIdA==}
+  prettier@3.8.5:
+    resolution: {integrity: sha512-zxcTTCedNGJM4R8sj/Cq/F0W/c4iE0afWBcBwMTRtw4WHYP9TWkYjdiH3npPRUYsXQCPR0hTU9yjovOu+E6EQA==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -5842,10 +5842,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-prettier@5.5.7(eslint-config-prettier@10.1.8(eslint@9.39.5))(eslint@9.39.5)(prettier@3.9.10):
+  eslint-plugin-prettier@5.5.7(eslint-config-prettier@10.1.8(eslint@9.39.5))(eslint@9.39.5)(prettier@3.8.5):
     dependencies:
       eslint: 9.39.5
-      prettier: 3.9.10
+      prettier: 3.8.5
       prettier-linter-helpers: 1.0.1
       synckit: 0.12.3
     optionalDependencies:
@@ -7132,7 +7132,7 @@ snapshots:
       eslint: 10.14.0
       indent-string: 5.0.0
       loglevel-colored-level-prefix: 1.0.0
-      prettier: 3.9.10
+      prettier: 3.8.5
       pretty-format: 30.5.1
       stable-hash-x: 0.2.0
       tslib: 2.9.1
@@ -7146,7 +7146,7 @@ snapshots:
     dependencies:
       fast-diff: 1.3.0
 
-  prettier@3.9.10: {}
+  prettier@3.8.5: {}
 
   pretty-format@29.7.0:
     dependencies:
