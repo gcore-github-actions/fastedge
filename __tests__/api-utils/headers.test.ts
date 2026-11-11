@@ -2,8 +2,19 @@ import { apiHeaders, buildUserAgent } from '../../src/api-utils/headers.js'
 
 describe('headers', () => {
   const originalEnv = { ...process.env }
+  beforeEach(() => {
+    delete process.env.FASTEDGE_ACTION_CLIENT
+  })
   afterEach(() => {
     process.env = { ...originalEnv }
+  })
+
+  it('replaces non-ASCII and control characters so fetch accepts the header', () => {
+    process.env.GITHUB_ACTION_REF = 'feature/日本'
+    process.env.FASTEDGE_ACTION_CLIENT = 'x\ny'
+    const ua = buildUserAgent('deploy-app')
+    expect(ua).toBe('fastedge-github-action/feature/?? (deploy-app) x?y')
+    expect(() => new Headers({ 'User-Agent': ua })).not.toThrow()
   })
 
   it('appends the wrapper client token when FASTEDGE_ACTION_CLIENT is set', () => {

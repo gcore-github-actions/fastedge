@@ -12,7 +12,8 @@ function buildUserAgent(action: string): string {
   const ref = process.env.GITHUB_ACTION_REF || 'local'
   const client = process.env.FASTEDGE_ACTION_CLIENT?.trim()
   const ua = `fastedge-github-action/${ref} (${action})`
-  return client ? `${ua} ${client}` : ua
+  // Header values must be printable ASCII or fetch throws; refs/env can hold Unicode.
+  return (client ? `${ua} ${client}` : ua).replace(/[^\x20-\x7e]/g, '?')
 }
 
 function apiHeaders(apiConfig: ApiConfig): Record<string, string> {
