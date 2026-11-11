@@ -43,6 +43,7 @@ jest.unstable_mockModule('../../src/deploy-app/changes.js', () => ({
 
 // Mock FastEdgeClient
 jest.unstable_mockModule('../../src/api-utils/index.js', () => ({
+  buildUserAgent: jest.fn(() => 'test-ua'),
   FastEdgeClient: jest.fn().mockImplementation(() => ({
     apps: {
       getAll: mockGetApps,

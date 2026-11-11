@@ -39,6 +39,7 @@ jest.unstable_mockModule('../../src/deploy-template/changes.js', () => ({
 }))
 
 jest.unstable_mockModule('../../src/api-utils/index.js', () => ({
+  buildUserAgent: jest.fn(() => 'test-ua'),
   FastEdgeClient: jest.fn().mockImplementation(() => ({
     templates: {
       get: mockGetTemplate,

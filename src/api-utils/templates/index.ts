@@ -1,5 +1,7 @@
 import qs from 'qs'
 
+import { apiHeaders } from '../headers.js'
+
 import type {
   ApiConfig,
   CreateTemplateResource,
@@ -20,7 +22,7 @@ async function getTemplate(
       {
         method: 'GET',
         headers: {
-          Authorization: `APIKey ${apiConfig.apiKey}`
+          ...apiHeaders(apiConfig)
         }
       }
     )
@@ -53,7 +55,7 @@ async function getTemplates(
       {
         method: 'GET',
         headers: {
-          Authorization: `APIKey ${apiConfig.apiKey}`
+          ...apiHeaders(apiConfig)
         }
       }
     )
@@ -96,7 +98,7 @@ async function createTemplate(
     const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/template`, {
       method: 'POST',
       headers: {
-        Authorization: `APIKey ${apiConfig.apiKey}`,
+        ...apiHeaders(apiConfig),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(template)
@@ -123,7 +125,7 @@ async function updateTemplate(
       {
         method: 'PUT',
         headers: {
-          Authorization: `APIKey ${apiConfig.apiKey}`,
+          ...apiHeaders(apiConfig),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(body)

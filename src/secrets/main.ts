@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 
-import { FastEdgeClient } from '../api-utils/index.js'
+import { buildUserAgent, FastEdgeClient } from '../api-utils/index.js'
 import {
   createSecretResourceFromInputs,
   filterSecretSlots,
@@ -30,7 +30,11 @@ export async function run(): Promise<void> {
     const secretId: string = core.getInput('secret_id')
 
     // Create a FastEdge API client instance
-    const fastEdgeClient = new FastEdgeClient(apiKey, apiUrl)
+    const fastEdgeClient = new FastEdgeClient(
+      apiKey,
+      apiUrl,
+      buildUserAgent('secrets')
+    )
 
     const secretResource = createSecretResourceFromInputs()
 

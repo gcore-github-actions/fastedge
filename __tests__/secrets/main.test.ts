@@ -45,6 +45,7 @@ jest.unstable_mockModule('../../src/secrets/utils.js', () => ({
 
 // Mock FastEdgeClient
 jest.unstable_mockModule('../../src/api-utils/index.js', () => ({
+  buildUserAgent: jest.fn(() => 'test-ua'),
   FastEdgeClient: jest.fn().mockImplementation(() => ({
     secrets: {
       getAll: mockGetSecrets,

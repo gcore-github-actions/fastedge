@@ -32,6 +32,7 @@ import require$$2$2 from 'child_process';
 import require$$6$1 from 'timers';
 import path from 'node:path';
 import fs from 'node:fs';
+import process$1 from 'node:process';
 import crypto from 'node:crypto';
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
@@ -35352,6 +35353,25 @@ function requireLib () {
 var libExports = /*@__PURE__*/ requireLib();
 var qs = /*@__PURE__*/getDefaultExportFromCjs(libExports);
 
+/**
+ * e.g. `fastedge-github-action/v1 (deploy-app) gcore-org-workflow/1.0`.
+ * GITHUB_ACTION_REF is the ref the workflow pinned in `uses:` (tag, branch or SHA).
+ * FASTEDGE_ACTION_CLIENT is set by Gcore wrappers (e.g. org reusable workflows)
+ * to tell their traffic apart from native use. Metrics only — anyone can set it.
+ */
+function buildUserAgent(action) {
+    const ref = process$1.env.GITHUB_ACTION_REF || 'local';
+    const client = process$1.env.FASTEDGE_ACTION_CLIENT?.trim();
+    const ua = `fastedge-github-action/${ref} (${action})`;
+    return client ? `${ua} ${client}` : ua;
+}
+function apiHeaders(apiConfig) {
+    return {
+        Authorization: `APIKey ${apiConfig.apiKey}`,
+        ...(apiConfig.userAgent && { 'User-Agent': apiConfig.userAgent })
+    };
+}
+
 async function uploadBinary(apiConfig, wasmPath) {
     try {
         const normalizedPath = path.normalize(wasmPath);
@@ -35360,7 +35380,7 @@ async function uploadBinary(apiConfig, wasmPath) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/octet-stream',
-                Authorization: `APIKey ${apiConfig.apiKey}`
+                ...apiHeaders(apiConfig)
             },
             body: wasmBuffer
         });
@@ -35378,7 +35398,7 @@ async function getBinary(apiConfig, id) {
         const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/binaries/${id}`, {
             method: 'GET',
             headers: {
-                Authorization: `APIKey ${apiConfig.apiKey}`
+                ...apiHeaders(apiConfig)
             }
         });
         if (!response.ok) {
@@ -35430,7 +35450,7 @@ async function getApp(apiConfig, id) {
         const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/apps/${id}`, {
             method: 'GET',
             headers: {
-                Authorization: `APIKey ${apiConfig.apiKey}`
+                ...apiHeaders(apiConfig)
             }
         });
         if (!response.ok) {
@@ -35455,7 +35475,7 @@ async function getApps(apiConfig, query) {
         const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/apps${queryString}`, {
             method: 'GET',
             headers: {
-                Authorization: `APIKey ${apiConfig.apiKey}`
+                ...apiHeaders(apiConfig)
             }
         });
         if (!response.ok) {
@@ -35480,7 +35500,7 @@ async function createApp(apiConfig, app) {
         const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/apps`, {
             method: 'POST',
             headers: {
-                Authorization: `APIKey ${apiConfig.apiKey}`,
+                ...apiHeaders(apiConfig),
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(app)
@@ -35500,7 +35520,7 @@ async function updateApp(apiConfig, app) {
         const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/apps/${app.id}`, {
             method: 'PUT',
             headers: {
-                Authorization: `APIKey ${apiConfig.apiKey}`,
+                ...apiHeaders(apiConfig),
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(app)
@@ -35520,7 +35540,7 @@ async function getSecret(apiConfig, id) {
         const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/secrets/${id}`, {
             method: 'GET',
             headers: {
-                Authorization: `APIKey ${apiConfig.apiKey}`
+                ...apiHeaders(apiConfig)
             }
         });
         if (!response.ok) {
@@ -35545,7 +35565,7 @@ async function getSecrets(apiConfig, query) {
         const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/secrets${queryString}`, {
             method: 'GET',
             headers: {
-                Authorization: `APIKey ${apiConfig.apiKey}`
+                ...apiHeaders(apiConfig)
             }
         });
         if (!response.ok) {
@@ -35570,7 +35590,7 @@ async function createSecret(apiConfig, secret) {
         const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/secrets`, {
             method: 'POST',
             headers: {
-                Authorization: `APIKey ${apiConfig.apiKey}`,
+                ...apiHeaders(apiConfig),
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(secret)
@@ -35589,7 +35609,7 @@ async function updateSecret(apiConfig, secret) {
         const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/secrets/${secret.id}`, {
             method: 'PATCH',
             headers: {
-                Authorization: `APIKey ${apiConfig.apiKey}`,
+                ...apiHeaders(apiConfig),
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(secret)
@@ -35613,7 +35633,7 @@ async function getTemplate(apiConfig, id) {
         const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/template/${id}`, {
             method: 'GET',
             headers: {
-                Authorization: `APIKey ${apiConfig.apiKey}`
+                ...apiHeaders(apiConfig)
             }
         });
         if (!response.ok) {
@@ -35638,7 +35658,7 @@ async function getTemplates(apiConfig, query = {}) {
         const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/template${queryString}`, {
             method: 'GET',
             headers: {
-                Authorization: `APIKey ${apiConfig.apiKey}`
+                ...apiHeaders(apiConfig)
             }
         });
         if (!response.ok) {
@@ -35668,7 +35688,7 @@ async function createTemplate(apiConfig, template) {
         const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/template`, {
             method: 'POST',
             headers: {
-                Authorization: `APIKey ${apiConfig.apiKey}`,
+                ...apiHeaders(apiConfig),
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(template)
@@ -35688,7 +35708,7 @@ async function updateTemplate(apiConfig, template) {
         const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/template/${id}`, {
             method: 'PUT',
             headers: {
-                Authorization: `APIKey ${apiConfig.apiKey}`,
+                ...apiHeaders(apiConfig),
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(body)
@@ -35717,9 +35737,10 @@ class FastEdgeClient {
      * Creates a new FastEdge API client
      * @param apiKey - API key for authentication
      * @param apiUrl - Base URL for the FastEdge API
+     * @param userAgent - User-Agent sent on every request (see buildUserAgent)
      */
-    constructor(apiKey, apiUrl) {
-        this.apiConfig = { apiKey, apiUrl };
+    constructor(apiKey, apiUrl, userAgent) {
+        this.apiConfig = { apiKey, apiUrl, userAgent };
     }
     /**
      * Access application-related API endpoints
@@ -35893,7 +35914,7 @@ async function run() {
             return;
         }
         const templateId = coreExports.getInput('template_id');
-        const client = new FastEdgeClient(apiKey, apiUrl);
+        const client = new FastEdgeClient(apiKey, apiUrl, buildUserAgent('deploy-template'));
         let template;
         if (templateId && templateId !== '0') {
             template = await client.templates.get(templateId);

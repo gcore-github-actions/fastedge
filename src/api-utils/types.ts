@@ -1,6 +1,7 @@
 interface ApiConfig {
   apiKey: string
   apiUrl: string
+  userAgent?: string
 }
 
 type ApiType = 'wasi-http' | 'proxy-wasm'
