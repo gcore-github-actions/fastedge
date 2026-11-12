@@ -30,7 +30,8 @@ const mockApiUrl = 'https://api.example.com'
 const mockApiKey = 'test-api-key'
 const mockApiConfig = {
   apiUrl: mockApiUrl,
-  apiKey: mockApiKey
+  apiKey: mockApiKey,
+  userAgent: 'test-ua'
 }
 
 describe('Application functions', () => {
@@ -64,7 +65,8 @@ describe('Application functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -153,7 +155,8 @@ describe('Application functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -165,7 +168,8 @@ describe('Application functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -195,7 +199,8 @@ describe('Application functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -331,7 +336,8 @@ describe('Application functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -434,7 +440,8 @@ describe('Application functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -484,7 +491,8 @@ describe('Application functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -496,7 +504,8 @@ describe('Application functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -541,7 +550,8 @@ describe('Application functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -571,7 +581,8 @@ describe('Application functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -650,7 +661,8 @@ describe('Application functions', () => {
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           }),
           body: JSON.stringify(mockAppResource)
         })
@@ -699,7 +711,8 @@ describe('Application functions', () => {
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           }),
           body: JSON.stringify(mockAppTemplateResource)
         })
@@ -782,7 +795,8 @@ describe('Application functions', () => {
           method: 'PUT',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           }),
           body: JSON.stringify(mockAppResource)
         })

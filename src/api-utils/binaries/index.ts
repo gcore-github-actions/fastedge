@@ -1,6 +1,7 @@
 import path from 'node:path'
 import fs from 'node:fs'
 
+import { apiHeaders } from '../headers.js'
 import { ApiConfig, GetBinaryResponse, UploadBinaryResponse } from '../types.js'
 
 async function uploadBinary(
@@ -17,7 +18,7 @@ async function uploadBinary(
         method: 'POST',
         headers: {
           'Content-Type': 'application/octet-stream',
-          Authorization: `APIKey ${apiConfig.apiKey}`
+          ...apiHeaders(apiConfig)
         },
         body: wasmBuffer
       }
@@ -43,7 +44,7 @@ async function getBinary(
       {
         method: 'GET',
         headers: {
-          Authorization: `APIKey ${apiConfig.apiKey}`
+          ...apiHeaders(apiConfig)
         }
       }
     )

@@ -13,7 +13,8 @@ const mockApiUrl = 'https://api.example.com'
 const mockApiKey = 'test-api-key'
 const mockApiConfig = {
   apiUrl: mockApiUrl,
-  apiKey: mockApiKey
+  apiKey: mockApiKey,
+  userAgent: 'test-ua'
 }
 
 describe('Binaries functions', () => {
@@ -48,7 +49,8 @@ describe('Binaries functions', () => {
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           })
         })
       )
@@ -121,7 +123,8 @@ describe('Binaries functions', () => {
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/octet-stream',
-            Authorization: `APIKey ${mockApiKey}`
+            Authorization: `APIKey ${mockApiKey}`,
+            'User-Agent': 'test-ua'
           }),
           body: mockWasmBuffer
         })

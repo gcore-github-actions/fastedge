@@ -1,6 +1,7 @@
 import * as core from '@actions/core'
 
 import {
+  buildUserAgent,
   CreateAppResource,
   FastEdgeClient,
   GetAppResponse,
@@ -49,7 +50,11 @@ export async function run(): Promise<void> {
     const appId: string = core.getInput('app_id')
 
     // Create a FastEdge API client instance
-    const fastEdgeClient = new FastEdgeClient(apiKey, apiUrl)
+    const fastEdgeClient = new FastEdgeClient(
+      apiKey,
+      apiUrl,
+      buildUserAgent('deploy-app')
+    )
 
     // Check if the app exists
     let app: GetAppResponseWithBinary | undefined

@@ -16,9 +16,10 @@ export class FastEdgeClient {
    * Creates a new FastEdge API client
    * @param apiKey - API key for authentication
    * @param apiUrl - Base URL for the FastEdge API
+   * @param userAgent - User-Agent sent on every request (see buildUserAgent)
    */
-  constructor(apiKey: string, apiUrl: string) {
-    this.apiConfig = { apiKey, apiUrl }
+  constructor(apiKey: string, apiUrl: string, userAgent?: string) {
+    this.apiConfig = { apiKey, apiUrl, userAgent }
   }
 
   /**
@@ -176,3 +177,4 @@ export class FastEdgeClient {
 export * from './apps/index.js'
 export * from './binaries/index.js'
 export * from './types.js'
+export { buildUserAgent } from './headers.js'

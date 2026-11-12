@@ -45,6 +45,7 @@ jest.unstable_mockModule('../../src/secrets/utils.js', () => ({
 
 // Mock FastEdgeClient
 jest.unstable_mockModule('../../src/api-utils/index.js', () => ({
+  buildUserAgent: jest.fn(() => 'test-ua'),
   FastEdgeClient: jest.fn().mockImplementation(() => ({
     secrets: {
       getAll: mockGetSecrets,
@@ -58,6 +59,8 @@ jest.unstable_mockModule('../../src/api-utils/index.js', () => ({
 
 // Import the main function after mocking
 const { run } = await import('../../src/secrets/main.js')
+const { buildUserAgent, FastEdgeClient } =
+  await import('../../src/api-utils/index.js')
 
 describe('secrets main.ts', () => {
   const mockApiKey = 'test-api-key'
@@ -81,6 +84,16 @@ describe('secrets main.ts', () => {
           }
           return inputs[name] || ''
         })
+      })
+
+      it('passes the secrets user agent to the client', async () => {
+        await run()
+        expect(buildUserAgent).toHaveBeenCalledWith('secrets')
+        expect(FastEdgeClient).toHaveBeenCalledWith(
+          mockApiKey,
+          mockApiUrl,
+          'test-ua'
+        )
       })
 
       it('updates existing secret when changes are detected', async () => {

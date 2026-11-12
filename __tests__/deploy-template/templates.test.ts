@@ -20,7 +20,11 @@ const {
   updateTemplate
 } = await import('../../src/api-utils/templates/index.js')
 
-const apiConfig = { apiKey: 'test-key', apiUrl: 'https://api.example.com' }
+const apiConfig = {
+  apiKey: 'test-key',
+  apiUrl: 'https://api.example.com',
+  userAgent: 'test-ua'
+}
 
 const mockTemplate = {
   id: 100,
@@ -68,7 +72,10 @@ describe('getTemplate', () => {
 
     expect(spy).toHaveBeenCalledWith(
       'https://api.example.com/fastedge/v1/template/100',
-      expect.objectContaining({ method: 'GET' })
+      expect.objectContaining({
+        method: 'GET',
+        headers: { Authorization: 'APIKey test-key', 'User-Agent': 'test-ua' }
+      })
     )
     expect(result.id).toBe(100)
     expect(result.binary_id).toBe(500)

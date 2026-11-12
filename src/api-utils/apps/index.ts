@@ -1,6 +1,7 @@
 import qs from 'qs'
 
 import { getBinary } from '../binaries/index.js'
+import { apiHeaders } from '../headers.js'
 
 import type {
   ApiConfig,
@@ -65,7 +66,7 @@ async function getApp(
     const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/apps/${id}`, {
       method: 'GET',
       headers: {
-        Authorization: `APIKey ${apiConfig.apiKey}`
+        ...apiHeaders(apiConfig)
       }
     })
     if (!response.ok) {
@@ -97,7 +98,7 @@ async function getApps(
       {
         method: 'GET',
         headers: {
-          Authorization: `APIKey ${apiConfig.apiKey}`
+          ...apiHeaders(apiConfig)
         }
       }
     )
@@ -135,7 +136,7 @@ async function createApp(
     const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/apps`, {
       method: 'POST',
       headers: {
-        Authorization: `APIKey ${apiConfig.apiKey}`,
+        ...apiHeaders(apiConfig),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(app)
@@ -162,7 +163,7 @@ async function updateApp(
       {
         method: 'PUT',
         headers: {
-          Authorization: `APIKey ${apiConfig.apiKey}`,
+          ...apiHeaders(apiConfig),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(app)

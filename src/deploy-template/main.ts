@@ -5,7 +5,7 @@ import type {
   GetTemplateResponse,
   UpdateTemplateResource
 } from '../api-utils/types.js'
-import { FastEdgeClient } from '../api-utils/index.js'
+import { buildUserAgent, FastEdgeClient } from '../api-utils/index.js'
 import { isUpdateNeeded } from './changes.js'
 import {
   createTemplateResourceFromInputs,
@@ -27,7 +27,11 @@ export async function run(): Promise<void> {
     }
 
     const templateId: string = core.getInput('template_id')
-    const client = new FastEdgeClient(apiKey, apiUrl)
+    const client = new FastEdgeClient(
+      apiKey,
+      apiUrl,
+      buildUserAgent('deploy-template')
+    )
 
     let template: GetTemplateResponse | undefined
     if (templateId && templateId !== '0') {

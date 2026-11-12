@@ -1,5 +1,7 @@
 import qs from 'qs'
 
+import { apiHeaders } from '../headers.js'
+
 import type {
   ApiConfig,
   CreateSecretResource,
@@ -21,7 +23,7 @@ async function getSecret(
       {
         method: 'GET',
         headers: {
-          Authorization: `APIKey ${apiConfig.apiKey}`
+          ...apiHeaders(apiConfig)
         }
       }
     )
@@ -54,7 +56,7 @@ async function getSecrets(
       {
         method: 'GET',
         headers: {
-          Authorization: `APIKey ${apiConfig.apiKey}`
+          ...apiHeaders(apiConfig)
         }
       }
     )
@@ -92,7 +94,7 @@ async function createSecret(
     const response = await fetch(`${apiConfig.apiUrl}/fastedge/v1/secrets`, {
       method: 'POST',
       headers: {
-        Authorization: `APIKey ${apiConfig.apiKey}`,
+        ...apiHeaders(apiConfig),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(secret)
@@ -118,7 +120,7 @@ async function updateSecret(
       {
         method: 'PATCH',
         headers: {
-          Authorization: `APIKey ${apiConfig.apiKey}`,
+          ...apiHeaders(apiConfig),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(secret)
